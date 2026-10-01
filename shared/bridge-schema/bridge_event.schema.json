@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mycityai/bridge_event.schema.json",
+  "title": "Police → Municipal bridge event",
+  "description": "Text-only event. Must never contain images, video, faces, number plates or personal data. Unknown fields are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "type", "occurred_at", "location", "details"],
+  "properties": {
+    "event_id": { "type": "string", "maxLength": 64 },
+    "type": { "enum": ["road_closure", "road_reopened", "infra_issue"] },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lat", "lng"],
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lng": { "type": "number", "minimum": -180, "maximum": 180 },
+        "area": { "type": "string", "maxLength": 120 }
+      }
+    },
+    "affected_ward_ids": { "type": "array", "items": { "type": "integer" }, "maxItems": 20 },
+    "details": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reason": { "enum": ["accident", "event", "construction", "flooding", "other"] },
+        "until": { "type": "string", "format": "date-time" },
+        "diversion": { "type": "string", "maxLength": 200 },
+        "related_event_id": { "type": "string", "maxLength": 64 },
+        "issue": { "enum": ["waterlogging", "fallen_tree", "broken_signal", "pothole", "road_damage"] }
+      }
+    }
+  }
+}

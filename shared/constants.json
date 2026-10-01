@@ -1,0 +1,51 @@
+{
+  "version": "0.1.0",
+  "roles": ["citizen", "officer", "ward_rep", "mayor", "admin"],
+  "departments": ["water", "roads", "waste", "electricity", "drainage", "health", "other"],
+  "categories": {
+    "pothole":            { "department": "roads",       "sla_hours": 48 },
+    "road_damage":        { "department": "roads",       "sla_hours": 72 },
+    "garbage":            { "department": "waste",       "sla_hours": 24 },
+    "illegal_dumping":    { "department": "waste",       "sla_hours": 48 },
+    "water_leakage":      { "department": "water",       "sla_hours": 24 },
+    "no_water_supply":    { "department": "water",       "sla_hours": 12 },
+    "pipeline_burst":     { "department": "water",       "sla_hours": 6 },
+    "contaminated_water": { "department": "water",       "sla_hours": 12 },
+    "streetlight":        { "department": "electricity", "sla_hours": 72 },
+    "power_outage":       { "department": "electricity", "sla_hours": 12 },
+    "drainage_overflow":  { "department": "drainage",    "sla_hours": 24 },
+    "waterlogging":       { "department": "drainage",    "sla_hours": 12 },
+    "fallen_tree":        { "department": "roads",       "sla_hours": 24 },
+    "stray_animals":      { "department": "health",      "sla_hours": 72 },
+    "other":              { "department": "other",       "sla_hours": 72 }
+  },
+  "statuses": ["new", "merged", "assigned", "in_progress", "resolved", "closed", "reopened", "rejected"],
+  "status_transitions": {
+    "new":         ["assigned", "merged", "rejected"],
+    "merged":      [],
+    "assigned":    ["in_progress", "rejected"],
+    "in_progress": ["resolved", "rejected"],
+    "resolved":    ["closed", "reopened"],
+    "closed":      [],
+    "reopened":    ["assigned"],
+    "rejected":    []
+  },
+  "priority_levels": {
+    "low":      { "min": 0,  "max": 39 },
+    "medium":   { "min": 40, "max": 69 },
+    "high":     { "min": 70, "max": 89 },
+    "critical": { "min": 90, "max": 100 }
+  },
+  "escalation_levels": { "0": "officer", "1": "ward_rep", "2": "mayor" },
+  "announcement_priorities": ["emergency", "important", "general"],
+  "languages": ["en", "mr", "hi"],
+  "complaint_sources": ["citizen_app", "police_bridge", "sensor", "staff"],
+  "timeline_event_types": ["created", "classified", "merged", "assigned", "status_changed", "escalated", "proof_uploaded", "proof_verified", "feedback", "reopened", "comment", "auto_reply"],
+  "limits": {
+    "photo_max_mb": 8,
+    "description_max_chars": 1000,
+    "duplicate_radius_m": 50,
+    "auto_close_after_resolved_hours": 72,
+    "escalation_extra_hours": 24
+  }
+}

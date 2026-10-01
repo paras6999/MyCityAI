@@ -1,0 +1,18 @@
+# Who must approve changes to each folder.
+# Works together with branch protection on `main` ("Require review from Code Owners").
+# TODO: replace FRIEND_GITHUB_USERNAME with your friend's GitHub username, then uncomment those lines.
+
+# Default: Paras reviews anything not listed below
+*                         @paras6999
+
+# Municipal backend + dashboard — Paras
+/municipal/               @paras6999
+
+# Citizen app — Friend
+# /citizen-app/           @FRIEND_GITHUB_USERNAME
+
+# Shared contract — both must approve
+# /docs/API.md            @paras6999 @FRIEND_GITHUB_USERNAME
+# /shared/                @paras6999 @FRIEND_GITHUB_USERNAME
+/docs/API.md              @paras6999
+/shared/                  @paras6999
