@@ -9,15 +9,15 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 3 — Real-time & notifications** done on municipal side; next: Phase 4 AI (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.3 (draft — friend still needs to approve 0.1.0–0.1.3) |
+| Current phase | **Phase 4 — AI classification & priority** done on municipal side (Gemini); next: Phase 5 proof & feedback (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.4 (draft — friend still needs to approve 0.1.0–0.1.4) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). 60 tests. |
-| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). |
+| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. 77 tests. |
+| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue. |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -28,8 +28,9 @@
 2. Paras: add friend's GitHub username to CODEOWNERS, enable branch protection on `main`
 3. Friend: Expo app skeleton with mock API (Phase 0)
 4. Friend: Phases 1–3 — OTP login, ward picker, Report screen, My Complaints + detail + timeline, push (`getExpoPushTokenAsync` → `POST /auth/device-token`)
-5. Paras: Phase 4 — AI classification (YOLOv8 + text), duplicate merging, priority score, `/citizen/complaints/analyze`, LangGraph orchestrator
-6. Decide: which LLM API (needed for Phase 4 summaries / Phase 6 announcements)
+5. Paras: put a Gemini key in `municipal/backend/.env` (`GEMINI_API_KEY`) and try a real photo
+6. Paras: Phase 5 — after-photo proof + AI verification, citizen feedback (confirm / reopen), auto-close
+7. ML team: YOLOv8 weights (potholes, garbage, waterlogging) — can plug in before the Gemini step
 
 ## Team
 | Person | GitHub | Owns |
@@ -47,14 +48,22 @@
 | 2026-10-01 | Police video: live view only, AI in RAM, clips saved only with supervisor approval | Privacy-by-design (DPDP Act principles) |
 | 2026-10-02 | Monorepo with separate folders per system; API.md is the contract | Two people work in parallel without conflicts |
 | 2026-10-02 | App name: **MyCityAI** | Team decision (repo name) |
+| 2026-10-02 | AI = **Google Gemini** (photo+text in one call, embeddings); keyword fallback when unavailable; YOLO later | No trained YOLO models yet; one API covers vision + text |
 
 ## Open questions
 - Friend's name and GitHub username (for CODEOWNERS)
-- Which LLM API to use (Gemini free tier vs Groq/Llama vs OpenAI)?
 - Cloud host for the demo backend (Render vs Railway) — or local only?
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-02 — Municipal Phase 4 (AI triage)
+- Branches `backend/phase4-ai` and `dashboard/phase4-ai`.
+- Gemini (`gemini-2.5-flash`, `gemini-embedding-001`, both set in `.env`) returns category, severity, summary, objects, sensitive-location flag as JSON. **Not yet tested with a real key** — only with a faked Gemini in tests and the keyword fallback live.
+- Priority = severity + boosts (duplicates, sensitive place, SLA waiting, forecast) — Architecture §5.2 updated (replaces the weighted-sum draft).
+- Duplicates: same category, open, ≤ 50 m, last 30 days, cosine ≥ 0.6 when both have embeddings. Duplicate becomes `merged`, original gains +5 priority per report; merged reporters can view the original and get its pushes (message uses the original reporter's language).
+- Merged reports are hidden from the default staff queue (`status=merged` shows them).
+- Verified live (keyword fallback): "khadda near school" → pothole, priority 75; second report 15 m away → merged, original 80 with 2 reports; dashboard shows AI card, duplicates, merged banner.
+
 ### 2026-10-02 — Municipal Phase 3 (real-time)
 - Branches `backend/phase3-realtime` and `dashboard/phase3-live`.
 - **Push uses the Expo push service** (Expo push tokens), not raw FCM — works in Expo Go, no Firebase project needed. API.md 0.1.3. `PUSH_ENABLED=false` logs instead of sending.

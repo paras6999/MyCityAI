@@ -4,9 +4,10 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useParams } from 'react-router-dom'
 
-import { getComplaint, getTimeline, mediaUrl } from '../api/complaints'
+import { getComplaint, getDuplicates, getTimeline, mediaUrl } from '../api/complaints'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { AiAnalysisCard } from '../components/AiAnalysisCard'
 import { ComplaintActions } from '../components/ComplaintActions'
 import { ComplaintMap } from '../components/ComplaintMap'
 import { PriorityBadge } from '../components/PriorityBadge'
@@ -53,6 +54,12 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
     queryFn: () => getTimeline(complaintId),
     enabled: complaint.isSuccess,
   })
+  const duplicates = useQuery({
+    // Under ['complaint', id] so live updates (useDashboardSocket) refresh it too.
+    queryKey: ['complaint', complaintId, 'duplicates'],
+    queryFn: () => getDuplicates(complaintId),
+    enabled: complaint.isSuccess && complaint.data.duplicate_count > 0,
+  })
 
   const back = (
     <Link to={from ?? backTo} className="inline-flex items-center gap-1 text-sm text-muted hover:text-text">
@@ -78,6 +85,7 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
   const ward = c.location.ward_id ? wards.get(c.location.ward_id) : undefined
   const photo = mediaUrl(c.photo_url)
   const canEdit = user?.role === 'officer' || user?.role === 'mayor' || user?.role === 'admin'
+  const detailBase = location.pathname.replace(/\/\d+$/, '')
 
   return (
     <div className="space-y-4">
@@ -89,6 +97,15 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
         <PriorityBadge score={c.priority_score} level={c.priority_level} />
         <span className="font-mono text-xs text-muted">{c.code}</span>
       </div>
+
+      {c.merged_into_id && (
+        <p className="rounded-lg bg-neutral-bg px-4 py-2.5 text-sm text-neutral">
+          {t('detail.mergedInto')}{' '}
+          <Link to={`${detailBase}/${c.merged_into_id}`} className="font-semibold text-primary underline">
+            #{c.merged_into_id}
+          </Link>
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-4">
@@ -125,6 +142,22 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
             </dl>
           </Card>
 
+          {c.duplicate_count > 0 && (
+            <Card title={`${t('detail.duplicates')} (${c.duplicate_count})`}>
+              <ul className="divide-y divide-neutral-bg">
+                {duplicates.data?.map((d) => (
+                  <li key={d.id} className="py-2 first:pt-0 last:pb-0">
+                    <Link to={`${detailBase}/${d.id}`} className="flex items-baseline justify-between gap-3 text-sm hover:text-primary">
+                      <span className="min-w-0 truncate">{d.description ?? t(`category.${d.category}`)}</span>
+                      <span className="shrink-0 font-mono text-xs text-muted">{d.code}</span>
+                    </Link>
+                    <div className="text-xs text-muted">{formatDateTime(d.created_at)}</div>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
           <Card title={t('detail.location')}>
             <ComplaintMap lat={c.location.lat} lng={c.location.lng} />
             <p className="mt-2 text-xs text-muted">
@@ -135,6 +168,7 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
         </div>
 
         <div className="space-y-4">
+          {c.ai && <AiAnalysisCard ai={c.ai} />}
           <Card title={t('detail.actions')}>
             <ComplaintActions key={c.updated_at} complaint={c} canEdit={canEdit} />
           </Card>

@@ -117,6 +117,16 @@ export interface Location {
   ward_id: number | null
 }
 
+/** API.md §3.4 `ai` */
+export interface AiInfo {
+  category_confidence: number | null
+  detected_objects: string[]
+  summary: string | null
+  severity: number | null
+  sensitive_location: boolean
+  model: 'gemini' | 'keywords' | null
+}
+
 /** API.md §3.4 */
 export interface Complaint {
   id: number
@@ -130,7 +140,7 @@ export interface Complaint {
   status: Status
   priority_score: number
   priority_level: PriorityLevel
-  ai: { category_confidence: number | null; detected_objects: string[]; summary: string | null } | null
+  ai: AiInfo | null
   duplicate_count: number
   merged_into_id: number | null
   assigned_to: { id: number; name: string | null } | null
