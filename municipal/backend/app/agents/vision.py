@@ -174,6 +174,11 @@ def detect(image: bytes) -> list[Detection] | None:
     return sorted(detections, key=lambda d: d.confidence, reverse=True)
 
 
+def supported_categories() -> set[str]:
+    """Categories the loaded models can recognise."""
+    return {category for model in _load_models() for category in model.labels.values()}
+
+
 def best_category(detections: list[Detection]) -> tuple[str, float] | None:
     """Category with the most confident detection."""
     if not detections:

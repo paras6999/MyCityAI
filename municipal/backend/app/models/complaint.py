@@ -50,6 +50,14 @@ class Complaint(Base):
     assigned_to_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     reporter_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
 
+    # Latest resolution proof: after_photo_path, note, ai_verified (True/False/None = not checked),
+    # ai_confidence, reason, method, uploaded_at
+    proof: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Citizen's answer after resolution: action (confirm/reopen/auto_closed), rating, comment,
+    # created_at
+    feedback: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
     sla_hours: Mapped[int] = mapped_column(Integer)
     sla_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     escalation_level: Mapped[int] = mapped_column(Integer, default=0)

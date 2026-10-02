@@ -27,7 +27,7 @@
     "in_progress": ["resolved", "rejected"],
     "resolved":    ["closed", "reopened"],
     "closed":      [],
-    "reopened":    ["assigned"],
+    "reopened":    ["assigned", "in_progress"],
     "rejected":    []
   },
   "priority_levels": {

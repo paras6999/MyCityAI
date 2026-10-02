@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     vision_models_file: str | None = None
     models_dir: str = "models"
 
+    # Background jobs (auto-close resolved complaints; SLA escalation in Phase 7)
+    scheduler_enabled: bool = True
+    scheduler_interval_seconds: int = 300
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

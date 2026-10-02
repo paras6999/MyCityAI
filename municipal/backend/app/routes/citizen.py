@@ -18,6 +18,7 @@ from app.schemas.complaint import (
     Category,
     CitizenComplaintOut,
     DuplicateHint,
+    FeedbackIn,
     Status,
     TimelineEventOut,
 )
@@ -176,6 +177,22 @@ def my_complaint_timeline(complaint_id: int, db: DB, user: Citizen):
         .order_by(TimelineEvent.created_at, TimelineEvent.id)
     ).all()
     return ItemList(items=[TimelineEventOut.model_validate(e) for e in events])
+
+
+@router.post("/complaints/{complaint_id}/feedback", response_model=CitizenComplaintOut)
+def give_feedback(complaint_id: int, body: FeedbackIn, db: DB, user: Citizen):
+    """Confirm the fix (closes the complaint) or reopen it with a reason (API.md §5.4)."""
+    complaint = service.get_for_citizen(db, complaint_id, user)
+    service.apply_feedback(db, complaint, user, body.action, body.rating, body.comment)
+    db.commit()
+    db.refresh(complaint)
+    hub.publish(
+        "complaint.feedback",
+        service.to_staff_out(complaint).model_dump(mode="json"),
+        department=complaint.department,
+        ward_id=complaint.ward_id,
+    )
+    return service.to_citizen_out(complaint)
 
 
 @router.get("/home")

@@ -10,6 +10,7 @@ from app.agents import vision
 from app.core.config import API_VERSION, get_settings
 from app.core.errors import register_error_handlers
 from app.routes import auth, citizen, complaints_staff, health, wards, ws
+from app.services import scheduler
 from app.services.media import MEDIA_URL_PREFIX, media_root
 from app.services.realtime import hub
 
@@ -24,7 +25,10 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 async def lifespan(_: FastAPI):
     hub.bind_loop(asyncio.get_running_loop())
     vision.preload()
+    jobs = scheduler.start()
     yield
+    if jobs:
+        jobs.cancel()
 
 
 def create_app() -> FastAPI:

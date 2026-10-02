@@ -19,8 +19,10 @@ from app.schemas.complaint import (
     CitizenComplaintOut,
     ComplaintOut,
     ComplaintUpdate,
+    FeedbackOut,
     Location,
     PersonRef,
+    ProofOut,
     ReporterRef,
 )
 from app.services.media import media_url
@@ -375,6 +377,141 @@ def update_complaint(db: Session, complaint: Complaint, actor: User, body: Compl
         complaint.updated_at = _now()
 
 
+# --- resolution & feedback ---------------------------------------------------
+
+AUTO_CLOSE_NOTE = "Closed automatically: no response from the citizen within 72 hours"
+
+
+def record_proof(
+    db: Session,
+    complaint: Complaint,
+    actor: User,
+    *,
+    photo_path: str,
+    note: str | None,
+    verification,
+) -> None:
+    """Store the latest proof; resolve unless the AI found the problem still there."""
+    now = _now()
+    complaint.proof = {
+        "after_photo_path": photo_path,
+        "note": note,
+        "ai_verified": verification.ai_verified,
+        "ai_confidence": verification.confidence,
+        "reason": verification.reason,
+        "method": verification.method,
+        "uploaded_at": now.isoformat(),
+    }
+    add_event(db, complaint, "proof_uploaded", actor, note=note)
+    if verification.outcome == "not_fixed":
+        add_event(db, complaint, "comment", note=f"AI check: not fixed - {verification.reason}")
+    else:
+        if verification.outcome == "verified":
+            add_event(db, complaint, "proof_verified", note=verification.reason)
+        _transition(db, complaint, actor, "resolved", verification.reason)
+        complaint.resolved_at = now
+    complaint.updated_at = now
+
+
+def apply_feedback(
+    db: Session,
+    complaint: Complaint,
+    citizen: User,
+    action: str,
+    rating: int | None,
+    comment: str | None,
+) -> None:
+    if complaint.reporter_id != citizen.id:
+        raise APIError(
+            403, "FORBIDDEN", "Only the citizen who reported this can confirm or reopen it"
+        )
+    if complaint.status != "resolved":
+        raise APIError(
+            409, "INVALID_STATUS_TRANSITION", "Feedback is only possible after resolution"
+        )
+    comment = (comment or "").strip() or None
+    if action == "reopen" and not comment:
+        raise APIError(
+            400, "VALIDATION_ERROR", "Tell us what is still wrong", [{"field": "comment"}]
+        )
+    now = _now()
+    complaint.feedback = {
+        "action": action,
+        "rating": rating,
+        "comment": comment,
+        "created_at": now.isoformat(),
+    }
+    if action == "confirm":
+        add_event(db, complaint, "feedback", citizen, note=comment)
+        _transition(db, complaint, citizen, "closed", None)
+    else:
+        complaint.status = "reopened"
+        complaint.resolved_at = None
+        add_event(
+            db,
+            complaint,
+            "reopened",
+            citizen,
+            from_status="resolved",
+            to_status="reopened",
+            note=comment,
+        )
+    complaint.updated_at = now
+
+
+def close_stale_resolved(db: Session, hours: int) -> list[Complaint]:
+    """Close complaints resolved more than `hours` ago without citizen feedback. Caller commits."""
+    cutoff = _now() - timedelta(hours=hours)
+    stale = list(
+        db.scalars(
+            select(Complaint).where(Complaint.status == "resolved", Complaint.resolved_at < cutoff)
+        )
+    )
+    for complaint in stale:
+        complaint.feedback = {
+            "action": "auto_closed",
+            "rating": None,
+            "comment": None,
+            "created_at": _now().isoformat(),
+        }
+        complaint.status = "closed"
+        complaint.updated_at = _now()
+        add_event(
+            db,
+            complaint,
+            "status_changed",
+            from_status="resolved",
+            to_status="closed",
+            note=AUTO_CLOSE_NOTE,
+        )
+    return stale
+
+
+def _proof_out(c: Complaint) -> ProofOut | None:
+    if not c.proof:
+        return None
+    return ProofOut(
+        after_photo_url=media_url(c.proof.get("after_photo_path")),
+        note=c.proof.get("note"),
+        ai_verified=c.proof.get("ai_verified"),
+        ai_confidence=c.proof.get("ai_confidence"),
+        reason=c.proof.get("reason", ""),
+        method=c.proof.get("method", "none"),
+        uploaded_at=datetime.fromisoformat(c.proof["uploaded_at"]),
+    )
+
+
+def _feedback_out(c: Complaint) -> FeedbackOut | None:
+    if not c.feedback:
+        return None
+    return FeedbackOut(
+        action=c.feedback["action"],
+        rating=c.feedback.get("rating"),
+        comment=c.feedback.get("comment"),
+        created_at=datetime.fromisoformat(c.feedback["created_at"]),
+    )
+
+
 # --- serialisation -----------------------------------------------------------
 
 
@@ -410,6 +547,9 @@ def to_staff_out(c: Complaint) -> ComplaintOut:
         sla_hours=c.sla_hours,
         sla_due_at=_aware(c.sla_due_at),
         escalation_level=c.escalation_level,
+        proof=_proof_out(c),
+        feedback=_feedback_out(c),
+        resolved_at=_aware(c.resolved_at) if c.resolved_at else None,
         reporter=(
             ReporterRef(
                 id=c.reporter.id, name=c.reporter.name, phone_masked=mask_phone(c.reporter.phone)
@@ -446,6 +586,9 @@ def to_citizen_out(c: Complaint) -> CitizenComplaintOut:
         assigned_to=CitizenAssignee(name=c.assigned_to.name) if c.assigned_to else None,
         sla_hours=c.sla_hours,
         sla_due_at=_aware(c.sla_due_at),
+        proof=_proof_out(c),
+        feedback=_feedback_out(c),
+        resolved_at=_aware(c.resolved_at) if c.resolved_at else None,
         created_at=c.created_at,
         updated_at=c.updated_at,
     )

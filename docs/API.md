@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.5 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.6 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -104,7 +104,7 @@ The same lists live in machine-readable form in [`shared/constants.json`](../sha
 ```
 new ──► assigned ──► in_progress ──► resolved ──► closed
  │          │             │              │
- │          └─────────────┴──► rejected  └──► reopened ──► assigned
+ │          └─────────────┴──► rejected  └──► reopened ──► assigned / in_progress
  └──► merged   (duplicate merged into another complaint)
 ```
 | Status | Meaning | Who sets it |
@@ -113,7 +113,7 @@ new ──► assigned ──► in_progress ──► resolved ──► closed
 | `merged` | Duplicate; see `merged_into_id` | System |
 | `assigned` | Officer / field staff assigned | Officer |
 | `in_progress` | Work started | Officer |
-| `resolved` | Fixed; after-photo uploaded and AI-verified | Officer (needs proof) |
+| `resolved` | Fixed; after-photo uploaded and passed the AI check (or AI could not check) | Officer (needs proof) |
 | `closed` | Citizen confirmed, or no response within 72 h of `resolved` | Citizen / System |
 | `reopened` | Citizen says not fixed | Citizen |
 | `rejected` | Invalid / not municipal responsibility (reason required) | Officer |
@@ -233,19 +233,24 @@ Same as `Complaint` **minus** `reporter`, `escalation_level`, `assigned_to.id` a
 ### 3.7 `Proof`
 ```json
 {
-  "after_photo_url": "/media/complaints/4187/after.jpg",
+  "after_photo_url": "/media/complaints/4187/after-1759200000.jpg",
   "note": "Pothole filled and levelled",
   "ai_verified": true,
   "ai_confidence": 0.91,
+  "reason": "Pothole seen before is no longer visible",
+  "method": "yolo",
   "uploaded_at": "2026-09-30T08:00:00+05:30"
 }
 ```
+`ai_verified`: `true` = AI confirmed the fix · `false` = AI says not fixed (latest failed attempt) · `null` = AI could not check (the citizen's confirmation is the check).
+`method`: `identical` (same photo as the complaint) · `yolo` (our model: problem seen before, gone after) · `gemini` (before/after comparison) · `none`.
+Complaints also carry `resolved_at` (time of the last resolution, `null` otherwise).
 
 ### 3.8 `Feedback`
 ```json
 { "rating": 4, "comment": "Fixed quickly", "action": "confirm", "created_at": "2026-09-30T10:00:00+05:30" }
 ```
-`action`: `confirm` (→ `closed`) or `reopen` (→ `reopened`, `comment` required).
+`action`: `confirm` (→ `closed`), `reopen` (→ `reopened`, `comment` required) or `auto_closed` (system closed it 72 h after resolution without an answer). `rating` 1–5 or `null`.
 
 ### 3.9 `Announcement`
 ```json
@@ -384,7 +389,7 @@ A missing `category` is chosen by the AI (or the keyword fallback); a category t
 ```json
 { "action": "reopen", "rating": 2, "comment": "Pothole is back after rain" }
 ```
-→ `200` `CitizenComplaint`
+→ `200` `CitizenComplaint`. Errors: `409` if not `resolved`, `400` if `reopen` without `comment`, `403` if the user is only following a merged complaint (only the original reporter answers). Without an answer the complaint closes automatically 72 h after resolution.
 
 ### 5.5 Home screen summary
 **`GET /citizen/home`**
@@ -441,9 +446,11 @@ Rules:
 ### 6.5 Upload resolution proof
 **`POST /staff/complaints/{id}/proof`** — `multipart/form-data`: `after_photo` (file), `note`
 
-AI compares before/after photos. If `ai_verified = true` → status becomes `resolved`. If `false` → stays `in_progress` and response says why.
+Only while the complaint is `in_progress` (else `409`). The AI checks the after-photo (see §3.7 `method`):
+- `ai_verified: true` or `null` (could not check) → status becomes `resolved`, the reporter (and followers) get a `feedback_request` push.
+- `ai_verified: false` → stays `in_progress`; the reason is added to the timeline. Upload a better photo to try again.
 ```json
-{ "complaint": { "...Complaint..." }, "verification": { "ai_verified": false, "ai_confidence": 0.41, "reason": "Pothole still visible" } }
+{ "complaint": { "...Complaint..." }, "verification": { "ai_verified": false, "ai_confidence": 0.88, "reason": "Pothole still visible (88%)", "method": "yolo" } }
 ```
 
 ### 6.6 Comment / escalate
@@ -603,7 +610,7 @@ Close codes: `4401` = token missing/invalid/expired → refresh the token and re
 | `complaint.created` | New complaint in my scope |
 | `complaint.updated` | Status / assignment / priority changed |
 | `complaint.escalated` | Escalated to my level *(from Phase 7)* |
-| `complaint.feedback` | Citizen confirmed or reopened *(from Phase 5)* |
+| `complaint.feedback` | Citizen confirmed or reopened |
 | `announcement.published` | New announcement *(from Phase 6)* |
 | `suggestion.created` | New AI suggestion *(from Phase 6)* |
 | `insight.updated` | New bridge statistics arrived *(from Phase 9)* |
@@ -617,7 +624,7 @@ The Citizen App is built with Expo, so the backend sends notifications through t
 
 App side: request permission and get the token with `Notifications.getExpoPushTokenAsync()` (expo-notifications), then `POST /auth/device-token` with `{ "token": "ExponentPushToken[...]", "platform": "android" }`. Only Expo push tokens are accepted (`400` otherwise). Call `DELETE /auth/device-token` on logout.
 
-Sent today for these status changes: `assigned`, `in_progress`, `rejected` (body includes the reason). The message is in the citizen's `language`. More types arrive with later phases.
+Sent today for these status changes: `assigned`, `in_progress`, `rejected` (body includes the reason) and `resolved` (as `type: "feedback_request"` — open the complaint with Confirm / Reopen buttons). The message is in the citizen's `language`. More types arrive with later phases.
 
 Push `data` payload:
 ```json
@@ -702,6 +709,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.6 | 2026-10-02 | Resolution proof with AI check (`proof.reason/method`, `ai_verified` may be `null`), `resolved_at`, feedback rules, auto-close 72 h, `reopened → in_progress` allowed | Paras · *Friend: pending* |
 | 0.1.5 | 2026-10-02 | Local YOLO detection: `ai.model` adds `"yolo"`, new `ai.detections` (boxes) in complaints and the analyze response | Paras · *Friend: pending* |
 | 0.1.4 | 2026-10-02 | AI triage live: `ai.severity/sensitive_location/model`, priority formula, analyze response adds `summary` + `is_civic_issue`, duplicate merging + citizens can view the original | Paras · *Friend: pending* |
 | 0.1.3 | 2026-10-02 | Push via Expo push tokens (not raw FCM); `DELETE /auth/device-token`; WebSocket close codes and implemented events | Paras · *Friend: pending* |
