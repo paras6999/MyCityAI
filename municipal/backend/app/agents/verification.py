@@ -2,7 +2,8 @@
 
 Order of checks:
 1. identical  — the "after" photo is the same file as the complaint photo → not fixed
-2. yolo       — our model saw the problem before; is it still visible after?
+2. yolo       — our model saw the problem before; is it still visible after? A "gone" result
+                only counts as verified if the after-photo shows the same place (scene.py)
 3. gemini     — optional before/after comparison (any category)
 4. none       — no AI could judge: resolve, but mark as not checked so the citizen's
                 confirmation (or reopen) is the check
@@ -12,7 +13,7 @@ import hashlib
 from dataclasses import dataclass
 from typing import Literal
 
-from app.agents import gemini, vision
+from app.agents import gemini, scene, vision
 
 Outcome = Literal["verified", "not_fixed", "not_checked"]
 
@@ -59,6 +60,14 @@ def verify_fix(
         before_hits = (
             [d for d in vision.detect(before) or [] if d.category == category] if before else []
         )
+        if before_hits and scene.same_place(before, after) is False:
+            return Verification(
+                "not_checked",
+                None,
+                f"No {_label(category)} visible, but the after-photo does not look like the same "
+                "place; the citizen will confirm",
+                "yolo",
+            )
         if before_hits:
             return Verification(
                 "verified",

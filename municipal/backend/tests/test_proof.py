@@ -206,3 +206,54 @@ def test_auto_close_after_72_hours(client, db, monkeypatch):
     assert body["feedback"]["action"] == "auto_closed"
     still_open = client.get(f"/api/v1/staff/complaints/{fresh['id']}", headers=auth_header(roads))
     assert still_open.json()["status"] == "resolved"
+
+
+# --- same-place check --------------------------------------------------------
+
+
+def test_different_place_downgrades_yolo_verdict(client, monkeypatch):
+    complaint, roads, _ = in_progress_complaint(client)
+    monkeypatch.setattr("app.agents.vision.supported_categories", lambda: {"pothole"})
+    monkeypatch.setattr(
+        "app.agents.vision.detect", lambda image: [pothole(0.9)] if image == PNG else []
+    )
+    monkeypatch.setattr("app.agents.scene.same_place", lambda before, after: False)
+
+    body = upload_proof(client, complaint["id"], roads).json()
+
+    assert body["verification"]["ai_verified"] is None
+    assert "same place" in body["verification"]["reason"]
+    assert body["complaint"]["status"] == "resolved"  # citizen's confirmation decides
+
+
+def test_scene_matcher_separates_same_and_different_places():
+    cv2 = pytest.importorskip("cv2")
+    import numpy as np
+
+    from app.agents import scene
+
+    def textured(seed):
+        rng = np.random.default_rng(seed)
+        img = np.full((600, 800, 3), 128, np.uint8)
+        for _ in range(150):  # random shapes give plenty of corners to match
+            x, y = rng.integers(0, 800), rng.integers(0, 600)
+            colour = tuple(int(c) for c in rng.integers(0, 255, 3))
+            cv2.rectangle(
+                img,
+                (x, y),
+                (x + int(rng.integers(10, 80)), y + int(rng.integers(10, 80))),
+                colour,
+                -1,
+            )
+        return img
+
+    def encode(img):
+        return cv2.imencode(".jpg", img)[1].tobytes()
+
+    before = textured(1)
+    repaired = before.copy()
+    cv2.rectangle(repaired, (300, 350), (500, 500), (110, 110, 110), -1)  # "filled pothole"
+    reshot = cv2.convertScaleAbs(repaired[30:570, 40:760], alpha=1.1, beta=10)
+
+    assert scene.same_place(encode(before), encode(reshot)) is True
+    assert scene.same_place(encode(before), encode(textured(2))) is False
