@@ -366,7 +366,7 @@ Until Phase 4, a missing `category` becomes `"other"`. Non-JPG/PNG photo → `40
 |---|---|---|
 | `GET` | `/citizen/complaints?status=&page=` | paginated `CitizenComplaint` |
 | `GET` | `/citizen/complaints/{id}` | `CitizenComplaint` |
-| `GET` | `/citizen/complaints/{id}/timeline` | `{ "items": [TimelineEvent] }` |
+| `GET` | `/citizen/complaints/{id}/timeline` | `{ "items": [TimelineEvent] }` — staff `comment` events are internal and not included |
 
 ### 5.4 Feedback (confirm or reopen)
 **`POST /citizen/complaints/{id}/feedback`** — only when status is `resolved`
@@ -681,6 +681,6 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
-| 0.1.2 | 2026-10-02 | `photo_url` nullable for non-photo sources; documented complaint submit errors, PATCH rules and roles | Paras · *Friend: pending* |
+| 0.1.2 | 2026-10-02 | `photo_url` nullable for non-photo sources; documented complaint submit errors, PATCH rules and roles; citizen timeline excludes internal comments | Paras · *Friend: pending* |
 
 > To change this contract: open a PR that edits this file + adds a row here. Prefer **adding** optional fields over renaming/removing (see [Rules.md](Rules.md#3-api-contract-rules)).

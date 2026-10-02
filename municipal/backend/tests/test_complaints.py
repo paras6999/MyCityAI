@@ -290,3 +290,20 @@ def test_comment_is_added_to_timeline(client):
     assert timeline[-1]["type"] == "comment"
     assert timeline[-1]["note"] == "Material ordered"
     assert timeline[-1]["actor"]["role"] == "officer"
+
+
+def test_citizen_timeline_hides_internal_comments(client):
+    token = citizen_token(client)
+    complaint = submit(client, token, category="pothole")
+    roads = auth_header(staff_token(client, "officer.roads"))
+    client.post(
+        f"/api/v1/staff/complaints/{complaint['id']}/comments",
+        json={"note": "Internal: contractor delayed"},
+        headers=roads,
+    )
+
+    timeline = client.get(
+        f"/api/v1/citizen/complaints/{complaint['id']}/timeline", headers=auth_header(token)
+    ).json()["items"]
+
+    assert [e["type"] for e in timeline] == ["created"]

@@ -81,7 +81,11 @@ def my_complaint_timeline(complaint_id: int, db: DB, user: Citizen):
     complaint = service.get_for_citizen(db, complaint_id, user)
     events = db.scalars(
         select(TimelineEvent)
-        .where(TimelineEvent.complaint_id == complaint.id)
+        .where(
+            TimelineEvent.complaint_id == complaint.id,
+            # Staff comments are internal notes; citizens see status changes and their notes.
+            TimelineEvent.type != "comment",
+        )
         .order_by(TimelineEvent.created_at, TimelineEvent.id)
     ).all()
     return ItemList(items=[TimelineEventOut.model_validate(e) for e in events])
