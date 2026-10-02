@@ -1,6 +1,6 @@
 # 💻 municipal/dashboard — Municipal Corporation Dashboard
 
-**Owner:** Paras · **Stack:** React + Vite + TypeScript + Tailwind CSS + TanStack Query · **Port:** 5173
+**Owner:** Paras · **Stack:** React 19 + Vite + TypeScript (strict) + Tailwind CSS v4 + TanStack Query + React Router + i18next · **Port:** 5173
 
 One web app, different views by role: **Officer**, **Ward Representative**, **Mayor**, **Admin**, plus the public stats page.
 
@@ -12,15 +12,29 @@ dashboard/
 │   ├── pages/         login/, officer/, ward/, mayor/, admin/, public/
 │   ├── components/    StatusChip, PriorityBadge, KpiCard, AiCard, Timeline, ComplaintTable …
 │   ├── hooks/         useAuth, useWebSocket
-│   ├── i18n/
-│   └── theme/         tokens from Design.md (tailwind.config)
+│   └── i18n/          en.json (all UI text)
+│   index.css          Tailwind + design tokens from Design.md (@theme)
 ├── .env.example       VITE_API_URL, VITE_WS_URL
 └── package.json
 ```
 
-## Getting started (Phase 0)
+## Getting started
+Run from `municipal/dashboard/`:
 ```bash
-npm create vite@latest . -- --template react-ts
 npm install
+copy .env.example .env.local     # macOS/Linux: cp .env.example .env.local
 npm run dev
 ```
+Open http://localhost:5173. Start the [backend](../backend/) too; the login page shows whether the server is reachable.
+
+| Command | What |
+|---|---|
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Type-check + production build |
+| `npm run lint` | Lint (oxlint) |
+
+## Conventions
+- API calls only in `src/api/` (axios instance in `client.ts` turns API errors into `ApiError` with `code` / `message`).
+- Types in `src/api/types.ts` mirror docs/API.md.
+- All visible text via `t('key')` from `src/i18n/en.json`.
+- Colours via design tokens (`bg-primary`, `text-muted`, `bg-danger-bg` …) defined in `src/index.css`, never raw hex.
