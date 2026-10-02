@@ -208,3 +208,15 @@ def test_analyze_previews_without_saving(client, db, monkeypatch):
     assert len(body["nearby_duplicates"]) == 1
     assert body["nearby_duplicates"][0]["distance_m"] < 50
     assert db.query(Complaint).count() == before
+
+
+def test_queue_hides_merged_reports_unless_filtered(client):
+    submit(client, citizen_token(client, "+919811111111"), category="pothole", **NEAR_A)
+    second = submit(client, citizen_token(client, "+919822222222"), category="pothole", **NEAR_B)
+    roads = auth_header(staff_token(client, "officer.roads"))
+
+    queue = client.get("/api/v1/staff/complaints", headers=roads).json()["items"]
+    merged = client.get("/api/v1/staff/complaints?status=merged", headers=roads).json()["items"]
+
+    assert second["id"] not in [c["id"] for c in queue]
+    assert [c["id"] for c in merged] == [second["id"]]

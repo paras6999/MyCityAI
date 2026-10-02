@@ -75,6 +75,8 @@ python -m app.seed --demo
 ```
 Uploaded photos are saved under `MEDIA_DIR` (default `media/`, git-ignored) and served at `/media/...`.
 
+**AI (Gemini):** create a free key at https://aistudio.google.com/apikey and set `GEMINI_API_KEY` in `.env`. Without a key (or if Gemini fails) complaints are still classified by the keyword fallback in `app/agents/fallback.py`. The pipeline lives in `app/agents/` (see `orchestrator.py`). Tests never call the real API.
+
 **6. New migration after changing models**
 ```bash
 alembic revision --autogenerate -m "describe change"

@@ -411,7 +411,7 @@ Backend files: `routes/complaints_staff.py`, `routes/ward.py`, `routes/mayor.py`
 
 Query params (all optional): `status`, `category`, `department`, `ward_id`, `priority_level`, `escalation_level`, `sla` (`overdue` \| `due_soon`), `q` (text search), `sort` (`priority` default \| `created_at` \| `sla_due_at`), `page`, `page_size`
 
-→ paginated `Complaint`
+→ paginated `Complaint`. Without a `status` filter, `merged` reports are left out (they are listed under their original via §6.3 duplicates); use `status=merged` to see them.
 
 ### 6.3 Complaint detail
 | Method | Path | Response |

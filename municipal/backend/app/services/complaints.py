@@ -213,6 +213,9 @@ def apply_staff_filters(
 ) -> Select:
     if status:
         stmt = stmt.where(Complaint.status == status)
+    else:
+        # Merged reports live under their original (GET .../duplicates), not in the queue.
+        stmt = stmt.where(Complaint.status != "merged")
     if category:
         stmt = stmt.where(Complaint.category == category)
     if department:
