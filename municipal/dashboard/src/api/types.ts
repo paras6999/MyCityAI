@@ -64,3 +64,103 @@ export interface TokenResponse {
 export interface ListResponse<T> {
   items: T[]
 }
+
+/** API.md §1 pagination */
+export interface Page<T> {
+  items: T[]
+  page: number
+  page_size: number
+  total: number
+}
+
+/** API.md §2.3 */
+export const CATEGORIES = [
+  'pothole',
+  'road_damage',
+  'garbage',
+  'illegal_dumping',
+  'water_leakage',
+  'no_water_supply',
+  'pipeline_burst',
+  'contaminated_water',
+  'streetlight',
+  'power_outage',
+  'drainage_overflow',
+  'waterlogging',
+  'fallen_tree',
+  'stray_animals',
+  'other',
+] as const
+export type Category = (typeof CATEGORIES)[number]
+
+/** API.md §2.4 */
+export const STATUSES = [
+  'new',
+  'merged',
+  'assigned',
+  'in_progress',
+  'resolved',
+  'closed',
+  'reopened',
+  'rejected',
+] as const
+export type Status = (typeof STATUSES)[number]
+
+/** API.md §2.5 */
+export type PriorityLevel = 'low' | 'medium' | 'high' | 'critical'
+
+/** API.md §3.3 */
+export interface Location {
+  lat: number
+  lng: number
+  address: string | null
+  ward_id: number | null
+}
+
+/** API.md §3.4 */
+export interface Complaint {
+  id: number
+  code: string
+  source: 'citizen_app' | 'police_bridge' | 'sensor' | 'staff'
+  description: string | null
+  category: Category
+  department: Department
+  location: Location
+  photo_url: string | null
+  status: Status
+  priority_score: number
+  priority_level: PriorityLevel
+  ai: { category_confidence: number | null; detected_objects: string[]; summary: string | null } | null
+  duplicate_count: number
+  merged_into_id: number | null
+  assigned_to: { id: number; name: string | null } | null
+  sla_hours: number
+  sla_due_at: string
+  escalation_level: number
+  proof: unknown
+  feedback: unknown
+  reporter: { id: number; name: string | null; phone_masked: string | null } | null
+  created_at: string
+  updated_at: string
+}
+
+/** API.md §3.6 */
+export interface TimelineEvent {
+  id: number
+  complaint_id: number
+  type: string
+  from_status: Status | null
+  to_status: Status | null
+  note: string | null
+  actor: { id: number; name: string | null; role: Role } | null
+  created_at: string
+}
+
+/** API.md §6.4 */
+export interface ComplaintUpdate {
+  status?: Status
+  assigned_to_id?: number | null
+  note?: string
+  category?: Category
+  department?: Department
+}

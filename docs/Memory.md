@@ -9,15 +9,15 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 1 — Auth** done on municipal side; next: Phase 2 (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.1 (draft — friend still needs to approve 0.1.0 + 0.1.1) |
+| Current phase | **Phase 2 — Complaints core** done on municipal side; next: Phase 3 (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.2 (draft — friend still needs to approve 0.1.0–0.1.2) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 1 done: users/wards/otp tables (migration 0001), seed script, citizen OTP login, staff login, JWT access+refresh, `/auth/me`, `require_role`, `GET /wards`. 24 tests. |
-| `municipal/dashboard` | Phase 1 done: real staff login, token storage + silent refresh, role-based routes (`/officer`, `/ward`, `/mayor`, `/admin`), sidebar layout per role, placeholder home pages. |
+| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. 43 tests. |
+| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -27,8 +27,8 @@
 1. Both: review API.md and approve v0.1 (or request changes)
 2. Paras: add friend's GitHub username to CODEOWNERS, enable branch protection on `main`
 3. Friend: Expo app skeleton with mock API (Phase 0)
-4. Friend: Phase 1 — OTP login screens using `/auth/otp/*`, ward picker using `GET /wards`, `PATCH /auth/me` for name/ward
-5. Paras: Phase 2 — complaints tables, citizen + staff complaint APIs, officer queue page
+4. Friend: Phases 1–2 — OTP login, ward picker (`GET /wards`), Report screen (`POST /citizen/complaints`), My Complaints + detail + timeline
+5. Paras: Phase 3 — WebSocket live updates on the dashboard, FCM push to citizens
 
 ## Team
 | Person | GitHub | Owns |
@@ -54,6 +54,16 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-02 — Municipal Phase 2 (complaints)
+- Branches `backend/phase2-complaints` and `dashboard/phase2-queue` (built on top of the backend branch).
+- Backend reads enums/SLA/transitions from `shared/constants.json`; dashboard imports the same file (Vite `server.fs.allow`).
+- Ward of a complaint = nearest ward centre point (sample coordinates in `app/seed.py`) — stand-in for real ward polygons.
+- Priority is a fixed 50 until Phase 4 AI; demo seed sets varied scores to show sorting.
+- Staff `comment` events are internal — hidden from the citizen timeline (API.md 0.1.2).
+- `resolved` only via proof upload (Phase 5); staff cannot set closed/reopened/merged.
+- Verified in browser with a real photo upload: queue → detail → assign → start work → comment; ward rep sees only Ward 12 and can only comment.
+- Detail page is lazy-loaded (keeps Leaflet out of the main bundle).
+
 ### 2026-10-02 — Municipal Phase 1 (auth)
 - Branches `backend/phase1-auth` (backend) and `dashboard/phase1-login` (dashboard, built on top of the backend branch).
 - PyJWT + bcrypt instead of python-jose + passlib (passlib breaks with current bcrypt). Rules/Architecture updated.

@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.core.config import API_VERSION, get_settings
 from app.core.errors import register_error_handlers
-from app.routes import auth, health, wards
+from app.routes import auth, citizen, complaints_staff, health, wards
+from app.services.media import MEDIA_URL_PREFIX, media_root
 
 API_PREFIX = "/api/v1"
 
@@ -21,9 +23,11 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
 
-    app.include_router(health.router, prefix=API_PREFIX)
-    app.include_router(auth.router, prefix=API_PREFIX)
-    app.include_router(wards.router, prefix=API_PREFIX)
+    for module in (health, auth, wards, citizen, complaints_staff):
+        app.include_router(module.router, prefix=API_PREFIX)
+
+    media_root().mkdir(parents=True, exist_ok=True)
+    app.mount(MEDIA_URL_PREFIX, StaticFiles(directory=media_root()), name="media")
     return app
 
 

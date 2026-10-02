@@ -28,6 +28,8 @@
   --color-info-bg: #dbeafe;
   --color-neutral: #475569;
   --color-neutral-bg: #f1f5f9;
+  --color-critical: #7f1d1d;
+  --color-critical-bg: #fecaca;
 }
 
 body {

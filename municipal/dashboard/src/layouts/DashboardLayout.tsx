@@ -1,4 +1,5 @@
-import { Building2, LogOut, UserCircle } from 'lucide-react'
+import { Building2, LoaderCircle, LogOut, UserCircle } from 'lucide-react'
+import { Suspense } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
@@ -24,12 +25,12 @@ export function DashboardLayout({ role }: { role: StaffRole }) {
         </div>
 
         <nav className="space-y-1">
-          {NAVIGATION[role].map(({ key, icon: Icon, path }) =>
+          {NAVIGATION[role].map(({ key, icon: Icon, path, end }) =>
             path ? (
               <NavLink
                 key={key}
                 to={path}
-                end
+                end={end}
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm ${
                     isActive ? 'bg-primary-dark font-semibold text-white' : 'hover:bg-white/5'
@@ -72,7 +73,9 @@ export function DashboardLayout({ role }: { role: StaffRole }) {
           </button>
         </header>
         <main className="flex-1 px-6 pb-8">
-          <Outlet />
+          <Suspense fallback={<LoaderCircle className="mx-auto mt-16 animate-spin text-muted" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

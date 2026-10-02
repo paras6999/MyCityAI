@@ -69,6 +69,12 @@ The seed adds 20 sample wards and these staff accounts (password = `SEED_STAFF_P
 
 Citizens log in with any phone number; in development the OTP is always `DEV_OTP` (default `123456`).
 
+Optional demo data (a demo citizen `+919800000001` and 17 sample complaints across departments and wards):
+```bash
+python -m app.seed --demo
+```
+Uploaded photos are saved under `MEDIA_DIR` (default `media/`, git-ignored) and served at `/media/...`.
+
 **6. New migration after changing models**
 ```bash
 alembic revision --autogenerate -m "describe change"

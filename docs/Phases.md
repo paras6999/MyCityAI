@@ -28,10 +28,10 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** citizen logs in on phone; officer/ward rep/mayor each land on their own dashboard layout.
 
 ## Phase 2 — Complaints core (Weeks 3–4)
-- [ ] P: complaint, timeline tables; media upload storage
-- [ ] P: `POST /citizen/complaints` (category from user or `other` for now), `GET /citizen/complaints`, detail, timeline
-- [ ] P: `GET /staff/complaints` with filters + role visibility, detail, `PATCH` status/assign with transition rules
-- [ ] P: dashboard officer queue table + complaint detail page (photo, map, timeline) + assign/status actions
+- [x] P: complaint, timeline tables; media upload storage
+- [x] P: `POST /citizen/complaints` (category from user or `other` for now), `GET /citizen/complaints`, detail, timeline
+- [x] P: `GET /staff/complaints` with filters + role visibility, detail, `PATCH` status/assign with transition rules
+- [x] P: dashboard officer queue table + complaint detail page (photo, map, timeline) + assign/status actions
 - [ ] F: Report screen — camera/gallery, GPS, description, submit
 - [ ] F: My Complaints list + Complaint Detail with timeline
 - [ ] Both: switch app from mocks to real backend on same Wi-Fi
