@@ -1,0 +1,26 @@
+{
+  "app": {
+    "name": "MyCityAI",
+    "subtitle": "Municipal Dashboard"
+  },
+  "login": {
+    "title": "Staff sign in",
+    "description": "For department officers, ward representatives and the mayor's office.",
+    "username": "Username",
+    "password": "Password",
+    "submit": "Sign in",
+    "notYetAvailable": "Staff sign-in will be connected in Phase 1.",
+    "heroTitle": "Every complaint, routed and resolved.",
+    "heroBody": "AI agents prioritise civic issues, route them to the right department and escalate anything that misses its deadline.",
+    "featurePriority": "AI-sorted priority queue",
+    "featureEscalation": "Automatic escalation: officer → ward → mayor",
+    "featureTransparency": "Public statistics for every ward",
+    "footer": "College project prototype · sample data only"
+  },
+  "apiStatus": {
+    "checking": "Checking server…",
+    "online": "Server online",
+    "dbDown": "Server online · database unavailable",
+    "offline": "Server offline"
+  }
+}

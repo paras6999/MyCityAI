@@ -16,8 +16,8 @@
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Not started (folder + README only) |
-| `municipal/dashboard` | Not started (folder + README only) |
+| `municipal/backend` | Phase 0 done: FastAPI app, `/api/v1/health`, `.env` settings, API.md error format, SQLAlchemy + Alembic set up, pytest + ruff. No models yet. |
+| `municipal/dashboard` | Phase 0 done: Vite + React 19 + TS strict + Tailwind v4 tokens, i18n, axios client with `ApiError`, login page (UI only) with server status pill. |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -25,8 +25,9 @@
 
 ### Next steps
 1. Both: review API.md and approve v0.1 (or request changes)
-2. Paras: add GitHub usernames to CODEOWNERS, enable branch protection on `main`
-3. Paras: backend + dashboard skeletons · Friend: Expo app skeleton with mock API
+2. Paras: add friend's GitHub username to CODEOWNERS, enable branch protection on `main`
+3. Friend: Expo app skeleton with mock API (Phase 0)
+4. Paras: Phase 1 — users/wards tables, auth endpoints, dashboard login + role routing
 
 ## Team
 | Person | GitHub | Owns |
@@ -52,6 +53,12 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-02 — Municipal Phase 0
+- Backend skeleton on branch `backend/phase0-setup`; dashboard skeleton on `dashboard/phase0-setup`.
+- `docker-compose.yml` at repo root runs PostgreSQL 16 (`docker compose up -d db`). Backend also runs without DB; `/health` reports `database: unavailable`.
+- Verified: dashboard on :5173 reaches backend on :8000 (CORS ok), tests + lint pass.
+- Dashboard lint uses **oxlint** (Vite template default) instead of ESLint.
+
 ### 2026-10-02 — Repo initialised
 - Created folder structure, planning docs (PRD, Architecture, API, Rules, Phases, Design, Memory), `shared/constants.json`, bridge JSON schema, CODEOWNERS template, `.gitignore`.
 - Copied mockups and project PDF into `docs/assets/`.
