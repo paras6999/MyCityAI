@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.1 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.2 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -168,7 +168,7 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
 ```json
 { "lat": 16.6968, "lng": 74.2433, "address": "Near Rajarampuri bus stop", "ward_id": 12 }
 ```
-`address` may be `null`. `ward_id` is computed by the backend from coordinates.
+`address` may be `null`. `ward_id` is computed by the backend from coordinates (prototype: nearest ward centre point).
 
 ### 3.4 `Complaint` (full — what the dashboard sees)
 ```json
@@ -202,6 +202,9 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
   "updated_at": "2026-09-29T11:40:00+05:30"
 }
 ```
+
+- `photo_url` is a path on the backend (prefix it with the server origin, e.g. `http://<host>:8000/media/...`). It is `null` for complaints without a photo (`police_bridge`, `sensor`, `staff` sources).
+- `priority_score` is `50` (medium) for every complaint until the AI agents are added (Phase 4).
 
 ### 3.5 `CitizenComplaint` (what the Citizen App sees)
 Same as `Complaint` **minus** `reporter`, `escalation_level`, `ai.detected_objects` and `assigned_to.id`. Citizens only ever see their own complaints.
@@ -355,7 +358,8 @@ If an active announcement explains the issue (e.g. planned water shutdown), `act
 | `category` | `category` | no — AI decides if missing |
 | `language` | `language` | no (default user's language) |
 
-→ `201` `CitizenComplaint`. If merged into an existing complaint: `status = "merged"`, `merged_into_id` set — the citizen is subscribed to updates of the original.
+→ `201` `CitizenComplaint`. If merged into an existing complaint: `status = "merged"`, `merged_into_id` set — the citizen is subscribed to updates of the original (from Phase 4).
+Until Phase 4, a missing `category` becomes `"other"`. Non-JPG/PNG photo → `400 VALIDATION_ERROR`; over 8 MB → `413 FILE_TOO_LARGE`.
 
 ### 5.3 My complaints
 | Method | Path | Response |
@@ -413,7 +417,14 @@ Query params (all optional): `status`, `category`, `department`, `ward_id`, `pri
 ```json
 { "status": "in_progress", "assigned_to_id": 42, "note": "Team on site", "category": null, "department": null }
 ```
-All fields optional. Changing `category`/`department` re-routes the complaint. `status = "rejected"` requires `note`.
+All fields optional. Roles: `officer` (own department), `mayor`, `admin`; `ward_rep` → `403`.
+
+Rules:
+- Setting `assigned_to_id` on a `new`/`reopened` complaint also moves it to `assigned`. The assignee must be an active officer of the complaint's department (else `400`).
+- `status` must follow §2.4 transitions, else `409 INVALID_STATUS_TRANSITION`.
+- `resolved` is only reachable through the proof upload (§6.5); `closed`, `reopened` and `merged` are set by the citizen / system, never by staff → `409`.
+- `rejected` requires `note` (`400` otherwise). A `note` without a status change is stored as a comment.
+- Changing `category`/`department` re-routes the complaint (only while `new`/`assigned`/`reopened`, else `409`). Moving to another department clears the assignee and returns an `assigned` complaint to `new`.
 → `Complaint`
 
 ### 6.5 Upload resolution proof
@@ -670,5 +681,6 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.2 | 2026-10-02 | `photo_url` nullable for non-photo sources; documented complaint submit errors, PATCH rules and roles | Paras · *Friend: pending* |
 
 > To change this contract: open a PR that edits this file + adds a row here. Prefer **adding** optional fields over renaming/removing (see [Rules.md](Rules.md#3-api-contract-rules)).

@@ -24,6 +24,11 @@ class Settings(BaseSettings):
 
     seed_staff_password: str = "mycity-dev"
 
+    # Uploaded photos are stored here and served at /media
+    media_dir: str = "media"
+    # Optional override; defaults to <repo>/shared/constants.json
+    constants_path: str | None = None
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
