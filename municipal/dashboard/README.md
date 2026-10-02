@@ -35,6 +35,15 @@ Sign in with a seeded staff account (usernames listed in the [backend README](..
 | `npm run build` | Type-check + production build |
 | `npm run lint` | Lint (oxlint) |
 
+## Pages
+| Route | Who | Page |
+|---|---|---|
+| `/officer` | officer | Complaint queue (AI-sorted; filters are kept in the URL) |
+| `/officer/complaints/:id` | officer | Detail: photo, map, timeline, assign / start work / reject / comment |
+| `/ward/complaints`, `/ward/complaints/:id` | ward rep | Same queue/detail for their ward; can only comment |
+
+Use `python -m app.seed --demo` in the backend to get sample complaints.
+
 ## How auth works
 - `src/auth/AuthProvider.tsx` holds the signed-in user; `useAuth()` (in `src/auth/useAuth.ts`) gives `user`, `login`, `logout`.
 - Tokens are stored by `src/auth/tokenStorage.ts`. `src/api/client.ts` adds the bearer token and, on `TOKEN_EXPIRED`, refreshes once and retries.

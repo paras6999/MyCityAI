@@ -21,6 +21,8 @@ export interface NavItem {
   icon: LucideIcon
   /** Undefined = not built yet (shown as "Soon"). */
   path?: string
+  /** Only highlight on the exact path (for role home pages that have sub-pages). */
+  end?: boolean
 }
 
 // Sidebar items per role, from docs/Design.md §8.
@@ -34,9 +36,9 @@ export const NAVIGATION: Record<StaffRole, NavItem[]> = {
     { key: 'infraInsights', icon: Sparkles },
   ],
   ward_rep: [
-    { key: 'wardOverview', icon: Home, path: '/ward' },
+    { key: 'wardOverview', icon: Home, path: '/ward', end: true },
     { key: 'escalations', icon: AlertTriangle },
-    { key: 'allComplaints', icon: ClipboardList },
+    { key: 'allComplaints', icon: ClipboardList, path: '/ward/complaints' },
     { key: 'postAnnouncement', icon: Megaphone },
     { key: 'infraInsights', icon: Sparkles },
   ],

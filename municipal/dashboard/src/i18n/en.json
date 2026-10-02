@@ -5,9 +5,12 @@
   },
   "common": {
     "loading": "Loading…",
-    "logout": "Sign out"
+    "logout": "Sign out",
+    "retry": "Retry",
+    "cancel": "Cancel"
   },
   "roles": {
+    "citizen": "Citizen",
     "officer": "Department Officer",
     "ward_rep": "Ward Representative",
     "mayor": "Mayor",
@@ -82,5 +85,131 @@
     "online": "Server online",
     "dbDown": "Server online · database unavailable",
     "offline": "Server offline"
+  },
+  "status": {
+    "new": "New",
+    "merged": "Merged",
+    "assigned": "Assigned",
+    "in_progress": "In progress",
+    "resolved": "Resolved",
+    "closed": "Closed",
+    "reopened": "Reopened",
+    "rejected": "Rejected"
+  },
+  "category": {
+    "pothole": "Pothole",
+    "road_damage": "Road damage",
+    "garbage": "Garbage",
+    "illegal_dumping": "Illegal dumping",
+    "water_leakage": "Water leakage",
+    "no_water_supply": "No water supply",
+    "pipeline_burst": "Pipeline burst",
+    "contaminated_water": "Contaminated water",
+    "streetlight": "Street light",
+    "power_outage": "Power outage",
+    "drainage_overflow": "Drainage overflow",
+    "waterlogging": "Waterlogging",
+    "fallen_tree": "Fallen tree",
+    "stray_animals": "Stray animals",
+    "other": "Other"
+  },
+  "priority": {
+    "low": "Low priority",
+    "medium": "Medium priority",
+    "high": "High priority",
+    "critical": "Critical priority"
+  },
+  "source": {
+    "citizen_app": "Citizen app",
+    "police_bridge": "Police (bridge)",
+    "sensor": "Sensor",
+    "staff": "Staff"
+  },
+  "sla": {
+    "left": "{{duration}} left",
+    "overdue": "Overdue {{duration}}"
+  },
+  "queue": {
+    "subtitle": "Sorted by AI priority. Click a complaint to open it.",
+    "refresh": "Refresh",
+    "search": "Search",
+    "searchPlaceholder": "Search code, description or address",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "category": "Category",
+    "allCategories": "All categories",
+    "sla": "SLA",
+    "anySla": "Any SLA",
+    "overdue": "Overdue",
+    "dueSoon": "Due in 12 h",
+    "sort": "Sort",
+    "sortPriority": "Highest priority",
+    "sortSla": "Deadline soonest",
+    "sortNewest": "Newest first",
+    "loadError": "Couldn't load complaints.",
+    "empty": "No complaints match these filters.",
+    "count_one": "{{count}} complaint",
+    "count_other": "{{count}} complaints",
+    "pageOf": "Page {{page}} of {{last}}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "col": {
+      "code": "ID",
+      "issue": "Issue",
+      "ward": "Ward",
+      "reports": "Reports",
+      "priority": "Priority",
+      "sla": "SLA",
+      "status": "Status",
+      "reported": "Reported"
+    }
+  },
+  "detail": {
+    "back": "Back to complaints",
+    "notFound": "This complaint doesn't exist or isn't in your area.",
+    "loadError": "Couldn't load this complaint.",
+    "photoAlt": "Photo of the reported {{category}}",
+    "noPhoto": "No photo",
+    "details": "Details",
+    "department": "Department",
+    "ward": "Ward",
+    "reports": "Reports",
+    "reported": "Reported",
+    "sla": "SLA",
+    "assignedTo": "Assigned to",
+    "reporter": "Reporter",
+    "source": "Source",
+    "location": "Location",
+    "actions": "Actions",
+    "timeline": "Timeline"
+  },
+  "actions": {
+    "assignTo": "Assign to",
+    "chooseOfficer": "Choose officer…",
+    "assign": "Assign",
+    "startWork": "Start work",
+    "uploadProof": "Upload proof",
+    "proofLater": "Resolution proof upload arrives in Phase 5",
+    "reject": "Reject",
+    "rejectReason": "Reason for rejecting (shown to the citizen)",
+    "confirmReject": "Reject complaint",
+    "comment": "Comment",
+    "commentPlaceholder": "Internal note, e.g. material ordered",
+    "addComment": "Add comment",
+    "failed": "Action failed. Please try again."
+  },
+  "timeline": {
+    "created": "Complaint submitted",
+    "classified": "Category updated",
+    "merged": "Merged with a duplicate",
+    "assigned": "Assignment changed",
+    "statusChanged": "Status: {{status}}",
+    "escalated": "Escalated",
+    "proof_uploaded": "Proof uploaded",
+    "proof_verified": "Proof verified by AI",
+    "feedback": "Citizen feedback",
+    "reopened": "Reopened by citizen",
+    "comment": "Comment",
+    "auto_reply": "Automatic reply sent"
   }
 }
