@@ -61,9 +61,9 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** pothole photo is auto-classified to Roads with priority; second nearby report is merged.
 
 ## Phase 5 — Resolution proof & feedback (Week 8)
-- [ ] P: `POST /staff/complaints/{id}/proof` + before/after AI verification
-- [ ] P: `POST /citizen/complaints/{id}/feedback`, auto-close after 72 h
-- [ ] P: dashboard proof upload UI with before/after view
+- [x] P: `POST /staff/complaints/{id}/proof` + before/after AI verification
+- [x] P: `POST /citizen/complaints/{id}/feedback`, auto-close after 72 h
+- [x] P: dashboard proof upload UI with before/after view
 - [ ] F: after-photo shown in app, Rate / Confirm / Reopen
 
 **Done when:** officer can't resolve without verified photo; citizen can reopen.

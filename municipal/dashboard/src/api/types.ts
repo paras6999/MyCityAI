@@ -135,6 +135,32 @@ export interface AiInfo {
   detections: Detection[]
 }
 
+/** API.md §3.7 */
+export interface Proof {
+  after_photo_url: string | null
+  note: string | null
+  /** true = AI confirmed, false = AI says not fixed, null = AI could not check */
+  ai_verified: boolean | null
+  ai_confidence: number | null
+  reason: string
+  method: 'identical' | 'yolo' | 'gemini' | 'none'
+  uploaded_at: string
+}
+
+/** API.md §3.8 */
+export interface Feedback {
+  action: 'confirm' | 'reopen' | 'auto_closed'
+  rating: number | null
+  comment: string | null
+  created_at: string
+}
+
+/** API.md §6.5 */
+export interface ProofResponse {
+  complaint: Complaint
+  verification: Pick<Proof, 'ai_verified' | 'ai_confidence' | 'reason' | 'method'>
+}
+
 /** API.md §3.4 */
 export interface Complaint {
   id: number
@@ -155,8 +181,9 @@ export interface Complaint {
   sla_hours: number
   sla_due_at: string
   escalation_level: number
-  proof: unknown
-  feedback: unknown
+  proof: Proof | null
+  feedback: Feedback | null
+  resolved_at: string | null
   reporter: { id: number; name: string | null; phone_masked: string | null } | null
   created_at: string
   updated_at: string

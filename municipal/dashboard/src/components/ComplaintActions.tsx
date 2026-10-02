@@ -1,17 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Play, UserPlus, XCircle } from 'lucide-react'
+import { Camera, LoaderCircle, Play, UserPlus, XCircle } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError } from '../api/client'
-import { addComment, listOfficers, updateComplaint } from '../api/complaints'
+import { addComment, listOfficers, updateComplaint, uploadProof } from '../api/complaints'
 import type { Complaint, ComplaintUpdate } from '../api/types'
 import { STATUS_TRANSITIONS } from '../lib/constants'
+import { useToast } from './toast/toastContext'
 
 /** Officer actions on one complaint. Ward reps (`canEdit=false`) can only comment. */
 export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint; canEdit: boolean }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [assignee, setAssignee] = useState<string>(String(complaint.assigned_to?.id ?? ''))
   const [rejecting, setRejecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -51,6 +53,37 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
     onError,
   })
 
+  const proof = useMutation({
+    mutationFn: ({ photo, note }: { photo: File; note: string }) =>
+      uploadProof(complaint.id, photo, note),
+    onSuccess: ({ verification }) => {
+      setError(null)
+      // The panel re-mounts after the update, so the verdict is shown as a toast.
+      if (verification.ai_verified === false) {
+        toast.show({
+          title: t('actions.uploadProof'),
+          body: t('actions.proofRejected', { reason: verification.reason }),
+        })
+      } else {
+        toast.show({
+          title: t('actions.uploadProof'),
+          body: t(verification.ai_verified ? 'actions.proofVerified' : 'actions.proofNotChecked'),
+        })
+      }
+      refresh()
+    },
+    onError,
+  })
+
+  function submitProof(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const photo = form.get('after_photo')
+    if (photo instanceof File && photo.size > 0) {
+      proof.mutate({ photo, note: String(form.get('proof_note') ?? '').trim() })
+    }
+  }
+
   function submitReject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const note = String(new FormData(event.currentTarget).get('note')).trim()
@@ -64,7 +97,7 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
     if (note) comment.mutate(note, { onSuccess: () => form.reset() })
   }
 
-  const busy = update.isPending || comment.isPending
+  const busy = update.isPending || comment.isPending || proof.isPending
   const button =
     'flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50'
 
@@ -121,15 +154,6 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
               {t('actions.startWork')}
             </button>
           )}
-          {next.includes('resolved') && (
-            <span
-              className={`${button} cursor-not-allowed bg-neutral-bg text-muted`}
-              title={t('actions.proofLater')}
-            >
-              <Camera size={15} aria-hidden />
-              {t('actions.uploadProof')}
-            </span>
-          )}
           {next.includes('rejected') && !rejecting && (
             <button
               type="button"
@@ -142,6 +166,44 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
             </button>
           )}
         </div>
+      )}
+
+      {canEdit && next.includes('resolved') && (
+        <form onSubmit={submitProof} className="space-y-2 rounded-lg border border-border p-3">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted">
+            {t('actions.proofTitle')}
+          </div>
+          <label className="block text-xs text-muted">
+            {t('actions.proofPhoto')}
+            <input
+              name="after_photo"
+              type="file"
+              accept="image/jpeg,image/png"
+              required
+              className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary-light file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary"
+            />
+          </label>
+          <label className="block text-xs text-muted">
+            {t('actions.proofNote')}
+            <input
+              name="proof_note"
+              maxLength={1000}
+              className="mt-1 w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-sm text-text"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busy}
+            className={`${button} w-full bg-success text-white hover:opacity-90`}
+          >
+            {proof.isPending ? (
+              <LoaderCircle size={15} className="animate-spin" aria-hidden />
+            ) : (
+              <Camera size={15} aria-hidden />
+            )}
+            {proof.isPending ? t('actions.proofChecking') : t('actions.proofSubmit')}
+          </button>
+        </form>
       )}
 
       {rejecting && (

@@ -8,6 +8,7 @@ import { getComplaint, getDuplicates, getTimeline, mediaUrl } from '../api/compl
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { AiAnalysisCard } from '../components/AiAnalysisCard'
+import { BeforeAfterCard } from '../components/BeforeAfterCard'
 import { ComplaintActions } from '../components/ComplaintActions'
 import { ComplaintMap } from '../components/ComplaintMap'
 import { DetectionPhoto } from '../components/DetectionPhoto'
@@ -125,6 +126,8 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
             )}
             {c.description && <p className="mt-3 text-sm leading-relaxed">{c.description}</p>}
           </Card>
+
+          <BeforeAfterCard complaint={c} />
 
           <Card title={t('detail.details')}>
             <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">

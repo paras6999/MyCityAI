@@ -42,6 +42,8 @@ Sign in with a seeded staff account (usernames listed in the [backend README](..
 | `/officer/complaints/:id` | officer | Detail: photo, map, timeline, assign / start work / reject / comment |
 | `/ward/complaints`, `/ward/complaints/:id` | ward rep | Same queue/detail for their ward; can only comment |
 
+When a complaint is *In progress* the officer uploads an after-photo (Actions → Resolution proof). The AI verdict appears as a toast and in the **Before / after** card, together with the citizen's feedback.
+
 Use `python -m app.seed --demo` in the backend to get sample complaints.
 
 **Live updates:** the layout opens `WS /ws/dashboard` (`src/hooks/useDashboardSocket.ts`). New or changed complaints refresh the lists automatically and new complaints pop up as a toast. The header shows **Live** / **Reconnecting…**; the socket reconnects with backoff and refreshes an expired token (close code 4401).
