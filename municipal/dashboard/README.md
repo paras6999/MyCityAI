@@ -25,13 +25,20 @@ npm install
 copy .env.example .env.local     # macOS/Linux: cp .env.example .env.local
 npm run dev
 ```
-Open http://localhost:5173. Start the [backend](../backend/) too; the login page shows whether the server is reachable.
+Open http://localhost:5173. Start the [backend](../backend/) too (with database + seed data); the login page shows whether the server is reachable.
+
+Sign in with a seeded staff account (usernames listed in the [backend README](../backend/README.md#getting-started)); each role lands on its own view: officer → `/officer`, ward rep → `/ward`, mayor → `/mayor`, admin → `/admin`.
 
 | Command | What |
 |---|---|
 | `npm run dev` | Dev server with hot reload |
 | `npm run build` | Type-check + production build |
 | `npm run lint` | Lint (oxlint) |
+
+## How auth works
+- `src/auth/AuthProvider.tsx` holds the signed-in user; `useAuth()` (in `src/auth/useAuth.ts`) gives `user`, `login`, `logout`.
+- Tokens are stored by `src/auth/tokenStorage.ts`. `src/api/client.ts` adds the bearer token and, on `TOKEN_EXPIRED`, refreshes once and retries.
+- `RequireRole` guards each role's routes; nav items per role live in `src/layouts/navigation.ts`.
 
 ## Conventions
 - API calls only in `src/api/` (axios instance in `client.ts` turns API errors into `ApiError` with `code` / `message`).

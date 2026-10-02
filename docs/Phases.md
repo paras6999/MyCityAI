@@ -10,19 +10,19 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 - [ ] Both: read PRD, Architecture, API, Rules, Design
 - [ ] Both: review & approve API.md v0.1 (change anything now, it's cheapest)
 - [ ] P: add both GitHub usernames to `.github/CODEOWNERS`, enable branch protection on `main`
-- [ ] P: `municipal/backend` skeleton — FastAPI app, `/api/v1/health`, config from `.env`, error handler
-- [ ] P: PostgreSQL running (local or Docker), Alembic initialised
-- [ ] P: `municipal/dashboard` skeleton — Vite + React + TS + Tailwind, theme from Design.md
+- [x] P: `municipal/backend` skeleton — FastAPI app, `/api/v1/health`, config from `.env`, error handler
+- [x] P: PostgreSQL running (local or Docker), Alembic initialised
+- [x] P: `municipal/dashboard` skeleton — Vite + React + TS + Tailwind, theme from Design.md
 - [ ] F: `citizen-app` skeleton — Expo + expo-router + TS, tab layout (Report · My Complaints · Updates · Stats), theme, i18n setup
 - [ ] F: `src/api/` client with mock mode and types copied from API.md
 
 **Done when:** all three run locally; app shows empty tabs; dashboard shows a login page; `/health` returns OK.
 
 ## Phase 1 — Auth (Week 2)
-- [ ] P: users & wards tables, seed data (officers per department, ward reps, mayor, admin)
-- [ ] P: `/auth/otp/request`, `/auth/otp/verify` (dev OTP `123456`), `/auth/login`, `/auth/refresh`, `/auth/me`
-- [ ] P: `require_role()` dependency
-- [ ] P: dashboard login page + role-based routing (officer / ward / mayor layouts)
+- [x] P: users & wards tables, seed data (officers per department, ward reps, mayor, admin)
+- [x] P: `/auth/otp/request`, `/auth/otp/verify` (dev OTP `123456`), `/auth/login`, `/auth/refresh`, `/auth/me`
+- [x] P: `require_role()` dependency
+- [x] P: dashboard login page + role-based routing (officer / ward / mayor layouts)
 - [ ] F: phone + OTP screens, store token securely (expo-secure-store), ward selection, logout
 
 **Done when:** citizen logs in on phone; officer/ward rep/mayor each land on their own dashboard layout.

@@ -3,13 +3,73 @@
     "name": "MyCityAI",
     "subtitle": "Municipal Dashboard"
   },
+  "common": {
+    "loading": "Loading…",
+    "logout": "Sign out"
+  },
+  "roles": {
+    "officer": "Department Officer",
+    "ward_rep": "Ward Representative",
+    "mayor": "Mayor",
+    "admin": "Administrator"
+  },
+  "departments": {
+    "water": "Water Supply",
+    "roads": "Roads",
+    "waste": "Solid Waste",
+    "electricity": "Electricity",
+    "drainage": "Drainage",
+    "health": "Health",
+    "other": "Other"
+  },
+  "nav": {
+    "soon": "Soon",
+    "comingSoon": "Coming in a later phase",
+    "myComplaints": "My Complaints",
+    "mapView": "Map View",
+    "announcements": "Announcements",
+    "escalations": "Escalations",
+    "performance": "Performance",
+    "infraInsights": "Infra Insights",
+    "wardOverview": "Ward Overview",
+    "allComplaints": "All Complaints",
+    "postAnnouncement": "Post Announcement",
+    "cityOverview": "City Overview",
+    "wardHeatmap": "Ward Heatmap",
+    "departments": "Departments",
+    "finalEscalations": "Final Escalations",
+    "cityAnnouncement": "City Announcement",
+    "users": "Users",
+    "wards": "Wards",
+    "slaSettings": "SLA Settings"
+  },
+  "home": {
+    "title": {
+      "officer": "My Complaints",
+      "ward_rep": "Ward Overview",
+      "mayor": "City Overview",
+      "admin": "Administration"
+    },
+    "scopeDepartment": "{{department}} department",
+    "scopeWard": "Ward {{number}} · {{name}}",
+    "scopeCity": "All wards and departments",
+    "comingTitle": "You're signed in",
+    "coming": {
+      "officer": "Your AI-sorted complaint queue appears here in Phase 2.",
+      "ward_rep": "Ward KPIs and the escalation inbox appear here in Phase 7.",
+      "mayor": "City KPIs, the ward heatmap and department ranking appear here in Phase 7.",
+      "admin": "User, ward and SLA management will appear here."
+    }
+  },
   "login": {
     "title": "Staff sign in",
     "description": "For department officers, ward representatives and the mayor's office.",
     "username": "Username",
     "password": "Password",
     "submit": "Sign in",
-    "notYetAvailable": "Staff sign-in will be connected in Phase 1.",
+    "errorCredentials": "Wrong username or password.",
+    "errorNetwork": "Can't reach the server. Is the backend running?",
+    "errorGeneric": "Sign-in failed. Please try again.",
     "heroTitle": "Every complaint, routed and resolved.",
     "heroBody": "AI agents prioritise civic issues, route them to the right department and escalate anything that misses its deadline.",
     "featurePriority": "AI-sorted priority queue",
