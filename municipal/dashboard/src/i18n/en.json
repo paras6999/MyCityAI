@@ -235,6 +235,10 @@
     "severity": "Severity",
     "objects": "Seen in photo",
     "sensitive": "Near a school, hospital, bus stop or other busy place",
-    "noSummary": "No AI summary for this complaint."
+    "noSummary": "No AI summary for this complaint.",
+    "yolo": "Our YOLO model",
+    "yoloHint": "Detected in the photo by the local YOLO model (free, offline)",
+    "showBoxes_one": "Show detected object",
+    "showBoxes_other": "Show {{count}} detected objects"
   }
 }

@@ -117,6 +117,13 @@ export interface Location {
   ward_id: number | null
 }
 
+/** One object found by the YOLO model; box = [x1, y1, x2, y2] as fractions of the photo. */
+export interface Detection {
+  label: Category
+  confidence: number
+  box: number[]
+}
+
 /** API.md §3.4 `ai` */
 export interface AiInfo {
   category_confidence: number | null
@@ -124,7 +131,8 @@ export interface AiInfo {
   summary: string | null
   severity: number | null
   sensitive_location: boolean
-  model: 'gemini' | 'keywords' | null
+  model: 'yolo' | 'gemini' | 'keywords' | null
+  detections: Detection[]
 }
 
 /** API.md §3.4 */

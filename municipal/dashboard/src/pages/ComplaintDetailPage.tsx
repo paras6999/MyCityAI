@@ -10,6 +10,7 @@ import { useAuth } from '../auth/useAuth'
 import { AiAnalysisCard } from '../components/AiAnalysisCard'
 import { ComplaintActions } from '../components/ComplaintActions'
 import { ComplaintMap } from '../components/ComplaintMap'
+import { DetectionPhoto } from '../components/DetectionPhoto'
 import { PriorityBadge } from '../components/PriorityBadge'
 import { SlaLabel } from '../components/SlaLabel'
 import { StatusChip } from '../components/StatusChip'
@@ -111,10 +112,10 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
         <div className="space-y-4">
           <Card>
             {photo ? (
-              <img
+              <DetectionPhoto
                 src={photo}
                 alt={t('detail.photoAlt', { category: t(`category.${c.category}`) })}
-                className="max-h-96 w-full rounded-lg bg-neutral-bg object-contain"
+                detections={c.ai?.detections ?? []}
               />
             ) : (
               <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-neutral-bg text-sm text-muted">
