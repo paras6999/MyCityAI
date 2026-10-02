@@ -36,6 +36,8 @@ class DashboardHub:
     def __init__(self) -> None:
         self._connections: dict[WebSocket, Viewer] = {}
         self._loop: asyncio.AbstractEventLoop | None = None
+        # The event loop only keeps weak references to tasks; hold them until they finish.
+        self._tasks: set[asyncio.Task] = set()
 
     def bind_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Remember the server's event loop so sync routes (worker threads) can publish."""
@@ -72,7 +74,9 @@ class DashboardHub:
         except RuntimeError:
             running = None
         if running is self._loop:
-            running.create_task(coroutine)
+            task = running.create_task(coroutine)
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
         else:
             asyncio.run_coroutine_threadsafe(coroutine, self._loop)
 

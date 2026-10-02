@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -12,6 +13,9 @@ from app.services.media import MEDIA_URL_PREFIX, media_root
 from app.services.realtime import hub
 
 API_PREFIX = "/api/v1"
+
+# Show the app's own log lines (dev OTP, push results, errors) next to uvicorn's.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
 
 
 @asynccontextmanager
