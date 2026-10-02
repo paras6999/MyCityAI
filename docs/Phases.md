@@ -39,10 +39,10 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** complaint submitted from phone appears on officer dashboard (after refresh); status changes show in app.
 
 ## Phase 3 — Real-time & notifications (Week 5)
-- [ ] P: WebSocket `/ws/dashboard` with role-scoped events
-- [ ] P: FCM push sender + `/auth/device-token`
-- [ ] P: dashboard live updates (new complaint appears without refresh, toast)
-- [ ] F: register push token, handle notification tap → open screen
+- [x] P: WebSocket `/ws/dashboard` with role-scoped events
+- [x] P: push sender (Expo push service) + `/auth/device-token`
+- [x] P: dashboard live updates (new complaint appears without refresh, toast)
+- [ ] F: register Expo push token (`getExpoPushTokenAsync` → `POST /auth/device-token`), handle notification tap → open screen
 - [ ] F: pull-to-refresh, loading/empty/error states everywhere
 
 **Done when:** officer sees new complaint instantly; citizen gets push on status change.

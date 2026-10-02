@@ -7,7 +7,8 @@
     "loading": "Loading…",
     "logout": "Sign out",
     "retry": "Retry",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "dismiss": "Dismiss"
   },
   "roles": {
     "citizen": "Citizen",
@@ -211,5 +212,14 @@
     "reopened": "Reopened by citizen",
     "comment": "Comment",
     "auto_reply": "Automatic reply sent"
+  },
+  "live": {
+    "connecting": "Connecting…",
+    "live": "Live",
+    "reconnecting": "Reconnecting…",
+    "connectingHint": "Connecting to live updates",
+    "liveHint": "New complaints and changes appear automatically",
+    "reconnectingHint": "Lost connection to live updates — retrying",
+    "newComplaint": "New complaint: {{category}}"
   }
 }

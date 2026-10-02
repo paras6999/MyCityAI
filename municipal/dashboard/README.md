@@ -44,6 +44,8 @@ Sign in with a seeded staff account (usernames listed in the [backend README](..
 
 Use `python -m app.seed --demo` in the backend to get sample complaints.
 
+**Live updates:** the layout opens `WS /ws/dashboard` (`src/hooks/useDashboardSocket.ts`). New or changed complaints refresh the lists automatically and new complaints pop up as a toast. The header shows **Live** / **Reconnecting…**; the socket reconnects with backoff and refreshes an expired token (close code 4401).
+
 ## How auth works
 - `src/auth/AuthProvider.tsx` holds the signed-in user; `useAuth()` (in `src/auth/useAuth.ts`) gives `user`, `login`, `logout`.
 - Tokens are stored by `src/auth/tokenStorage.ts`. `src/api/client.ts` adds the bearer token and, on `TOKEN_EXPIRED`, refreshes once and retries.

@@ -5,11 +5,13 @@ import { useTranslation } from 'react-i18next'
 
 import type { StaffRole } from '../api/types'
 import { useAuth } from '../auth/useAuth'
+import { useDashboardSocket } from '../hooks/useDashboardSocket'
 import { NAVIGATION } from './navigation'
 
 export function DashboardLayout({ role }: { role: StaffRole }) {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
+  const socketStatus = useDashboardSocket(role)
 
   return (
     <div className="flex min-h-screen">
@@ -59,6 +61,18 @@ export function DashboardLayout({ role }: { role: StaffRole }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-end gap-3 px-6 py-4">
+          <span
+            className="flex items-center gap-1.5 text-xs text-muted"
+            title={t(`live.${socketStatus}Hint`)}
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${
+                socketStatus === 'live' ? 'bg-success' : 'animate-pulse bg-warning'
+              }`}
+              aria-hidden
+            />
+            {t(`live.${socketStatus}`)}
+          </span>
           <span className="flex items-center gap-2 rounded-full bg-surface px-3 py-1.5 text-xs shadow-sm">
             <UserCircle size={16} className="text-muted" aria-hidden />
             {user?.name ?? t(`roles.${role}`)}

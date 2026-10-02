@@ -9,15 +9,15 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 2 — Complaints core** done on municipal side; next: Phase 3 (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.2 (draft — friend still needs to approve 0.1.0–0.1.2) |
+| Current phase | **Phase 3 — Real-time & notifications** done on municipal side; next: Phase 4 AI (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.3 (draft — friend still needs to approve 0.1.0–0.1.3) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. 43 tests. |
-| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). |
+| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). 60 tests. |
+| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -27,8 +27,9 @@
 1. Both: review API.md and approve v0.1 (or request changes)
 2. Paras: add friend's GitHub username to CODEOWNERS, enable branch protection on `main`
 3. Friend: Expo app skeleton with mock API (Phase 0)
-4. Friend: Phases 1–2 — OTP login, ward picker (`GET /wards`), Report screen (`POST /citizen/complaints`), My Complaints + detail + timeline
-5. Paras: Phase 3 — WebSocket live updates on the dashboard, FCM push to citizens
+4. Friend: Phases 1–3 — OTP login, ward picker, Report screen, My Complaints + detail + timeline, push (`getExpoPushTokenAsync` → `POST /auth/device-token`)
+5. Paras: Phase 4 — AI classification (YOLOv8 + text), duplicate merging, priority score, `/citizen/complaints/analyze`, LangGraph orchestrator
+6. Decide: which LLM API (needed for Phase 4 summaries / Phase 6 announcements)
 
 ## Team
 | Person | GitHub | Owns |
@@ -54,6 +55,14 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-02 — Municipal Phase 3 (real-time)
+- Branches `backend/phase3-realtime` and `dashboard/phase3-live`.
+- **Push uses the Expo push service** (Expo push tokens), not raw FCM — works in Expo Go, no Firebase project needed. API.md 0.1.3. `PUSH_ENABLED=false` logs instead of sending.
+- WebSocket hub is in-process (single backend worker). Multiple workers would need Redis pub/sub.
+- Bug found in browser testing: events published from `async` routes (complaint submit) were silently dropped — asyncio tasks were garbage-collected. Fixed by holding task references.
+- Bug found: app log lines (dev OTP, push) never printed — added `logging.basicConfig` in `app/main.py`.
+- Verified: dashboard shows Live, new complaint appears with toast without refresh, Reconnecting when backend stops and Live again after restart, push message built in the citizen's language.
+
 ### 2026-10-02 — Municipal Phase 2 (complaints)
 - Branches `backend/phase2-complaints` and `dashboard/phase2-queue` (built on top of the backend branch).
 - Backend reads enums/SLA/transitions from `shared/constants.json`; dashboard imports the same file (Vite `server.fs.allow`).
