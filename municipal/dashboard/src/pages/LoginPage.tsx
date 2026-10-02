@@ -1,16 +1,45 @@
-import { Building2, CheckCircle2 } from 'lucide-react'
+import { Building2, CheckCircle2, LoaderCircle } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 
+import { ApiError } from '../api/client'
+import { useAuth } from '../auth/useAuth'
+import { homePathFor } from '../auth/roles'
 import { ApiStatus } from '../components/ApiStatus'
+import { FullPageSpinner } from '../components/FullPageSpinner'
 
 export function LoginPage() {
   const { t } = useTranslation()
-  const [message, setMessage] = useState<string | null>(null)
+  const { user, loading, login } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  if (loading) return <FullPageSpinner />
+  if (user) return <Navigate to={homePathFor(user.role)} replace />
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setMessage(t('login.notYetAvailable'))
+    const form = new FormData(event.currentTarget)
+    setError(null)
+    setSubmitting(true)
+    try {
+      const signedIn = await login(String(form.get('username')), String(form.get('password')))
+      const from = (location.state as { from?: string } | null)?.from
+      navigate(from ?? homePathFor(signedIn.role), { replace: true })
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'INVALID_CREDENTIALS') {
+        setError(t('login.errorCredentials'))
+      } else if (err instanceof ApiError && err.code === 'NETWORK_ERROR') {
+        setError(t('login.errorNetwork'))
+      } else {
+        setError(t('login.errorGeneric'))
+      }
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const features = [
@@ -18,6 +47,8 @@ export function LoginPage() {
     t('login.featureEscalation'),
     t('login.featureTransparency'),
   ]
+  const inputClass =
+    'mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light'
 
   return (
     <div className="flex min-h-screen">
@@ -68,12 +99,7 @@ export function LoginPage() {
               <span className="text-xs font-medium uppercase tracking-wide text-muted">
                 {t('login.username')}
               </span>
-              <input
-                name="username"
-                autoComplete="username"
-                required
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light"
-              />
+              <input name="username" autoComplete="username" required className={inputClass} />
             </label>
             <label className="block">
               <span className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -84,20 +110,22 @@ export function LoginPage() {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary-light"
+                className={inputClass}
               />
             </label>
 
-            {message && (
-              <p role="status" className="rounded-lg bg-info-bg px-3 py-2 text-sm text-info">
-                {message}
+            {error && (
+              <p role="alert" className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
+                {error}
               </p>
             )}
 
             <button
               type="submit"
-              className="h-11 w-full rounded-lg bg-primary text-sm font-semibold text-white hover:bg-primary-dark"
+              disabled={submitting}
+              className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-70"
             >
+              {submitting && <LoaderCircle size={16} className="animate-spin" aria-hidden />}
               {t('login.submit')}
             </button>
           </form>

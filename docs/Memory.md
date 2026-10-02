@@ -9,15 +9,15 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 0 — Setup** (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.0 (draft, not yet approved by both) |
+| Current phase | **Phase 1 — Auth** done on municipal side; next: Phase 2 (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.1 (draft — friend still needs to approve 0.1.0 + 0.1.1) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 0 done: FastAPI app, `/api/v1/health`, `.env` settings, API.md error format, SQLAlchemy + Alembic set up, pytest + ruff. No models yet. |
-| `municipal/dashboard` | Phase 0 done: Vite + React 19 + TS strict + Tailwind v4 tokens, i18n, axios client with `ApiError`, login page (UI only) with server status pill. |
+| `municipal/backend` | Phase 1 done: users/wards/otp tables (migration 0001), seed script, citizen OTP login, staff login, JWT access+refresh, `/auth/me`, `require_role`, `GET /wards`. 24 tests. |
+| `municipal/dashboard` | Phase 1 done: real staff login, token storage + silent refresh, role-based routes (`/officer`, `/ward`, `/mayor`, `/admin`), sidebar layout per role, placeholder home pages. |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -27,7 +27,8 @@
 1. Both: review API.md and approve v0.1 (or request changes)
 2. Paras: add friend's GitHub username to CODEOWNERS, enable branch protection on `main`
 3. Friend: Expo app skeleton with mock API (Phase 0)
-4. Paras: Phase 1 — users/wards tables, auth endpoints, dashboard login + role routing
+4. Friend: Phase 1 — OTP login screens using `/auth/otp/*`, ward picker using `GET /wards`, `PATCH /auth/me` for name/ward
+5. Paras: Phase 2 — complaints tables, citizen + staff complaint APIs, officer queue page
 
 ## Team
 | Person | GitHub | Owns |
@@ -53,6 +54,15 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-02 — Municipal Phase 1 (auth)
+- Branches `backend/phase1-auth` (backend) and `dashboard/phase1-login` (dashboard, built on top of the backend branch).
+- PyJWT + bcrypt instead of python-jose + passlib (passlib breaks with current bcrypt). Rules/Architecture updated.
+- API.md 0.1.1: added `GET /wards`, OTP/login error codes, `type` claim in JWT. **Needs friend's approval.**
+- Local Postgres moved to host port **5433** (5432 was taken by another project's container on Paras's PC).
+- Dev logins: staff usernames in `municipal/backend/README.md`, password = `SEED_STAFF_PASSWORD`; citizen OTP = `DEV_OTP`.
+- Verified in browser: wrong password error, officer → `/officer`, officer blocked from `/mayor`, reload keeps session, sign out, ward rep sees "Ward 12 · Rajarampuri", expired access token refreshed silently.
+- Tokens are kept in localStorage (fine for the prototype; production would use httpOnly cookies).
+
 ### 2026-10-02 — Municipal Phase 0
 - Backend skeleton on branch `backend/phase0-setup`; dashboard skeleton on `dashboard/phase0-setup`.
 - `docker-compose.yml` at repo root runs PostgreSQL 16 (`docker compose up -d db`). Backend also runs without DB; `/health` reports `database: unavailable`.

@@ -121,7 +121,7 @@ MyCityAI/
 |---|---|
 | Citizen app | React Native, Expo (SDK latest), expo-router, TypeScript, TanStack Query, axios, expo-image-picker, expo-location, expo-notifications, i18next |
 | Web dashboards | React 18, Vite, TypeScript, Tailwind CSS, TanStack Query, React Router, Recharts, Leaflet (maps) |
-| Backends | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, SQLAlchemy 2, Alembic, python-jose (JWT), passlib |
+| Backends | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, SQLAlchemy 2, Alembic, PyJWT, bcrypt |
 | Database | PostgreSQL 16 (municipal and police are **separate databases**) |
 | AI / ML | Ultralytics YOLOv8, Sentence-Transformers (all-MiniLM-L6-v2), scikit-learn, PyTorch (LSTM), LangGraph, LLM API (Gemini / Llama / GPT) |
 | Real-time | WebSockets (FastAPI), Firebase Cloud Messaging |
@@ -138,7 +138,7 @@ MyCityAI/
 | police/backend | 9000 |
 | police/dashboard | 5174 |
 | MediaMTX (WebRTC) | 8889 |
-| PostgreSQL | 5432 (databases: `mycity_municipal`, `mycity_police`) |
+| PostgreSQL (Docker) | 5433 on your PC → 5432 in the container (databases: `mycity_municipal`, `mycity_police`) |
 
 ## 5. Key flows
 

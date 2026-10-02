@@ -36,7 +36,7 @@ These rules apply to **every human and every AI coding assistant** (Claude, Copi
 ### Use
 | Area | Library |
 |---|---|
-| Backend | FastAPI, Pydantic v2, SQLAlchemy 2 (typed), Alembic, python-jose, passlib[bcrypt], httpx, pytest |
+| Backend | FastAPI, Pydantic v2, SQLAlchemy 2 (typed), Alembic, PyJWT, bcrypt, httpx, pytest |
 | AI | ultralytics (YOLOv8), sentence-transformers, scikit-learn, torch, langgraph |
 | Web | React + Vite + TypeScript, Tailwind CSS, TanStack Query, React Router, axios, Recharts, react-leaflet, lucide-react, i18next |
 | Mobile | Expo + expo-router + TypeScript, TanStack Query, axios, expo-image-picker, expo-location, expo-notifications, i18next, react-native-maps |
@@ -64,7 +64,7 @@ These rules apply to **every human and every AI coding assistant** (Claude, Copi
 - DB changes only through Alembic migrations.
 
 ### TypeScript (app + dashboards)
-- TypeScript strict mode; format with **Prettier**, lint with ESLint.
+- TypeScript strict mode; format with **Prettier**; lint with **oxlint** (dashboard) / ESLint (Expo default in the app).
 - All API calls live in `src/api/` — components never call `axios` directly.
 - Types for API responses live in `src/api/types.ts`, copied from API.md.
 - All user-visible text goes through i18n (`t("key")`), no hard-coded strings in screens.

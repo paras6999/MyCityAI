@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.0 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.1 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -52,7 +52,9 @@ List endpoints accept `?page=1&page_size=20` (max 100) and return:
 
 | HTTP | `code` examples | Meaning |
 |---|---|---|
-| 400 | `VALIDATION_ERROR` | Bad input (`details` lists fields) |
+| 400 | `VALIDATION_ERROR` | Bad input (`details` lists fields as `{ "field", "message" }`) |
+| 400 | `OTP_INVALID`, `OTP_EXPIRED` | Wrong / expired OTP |
+| 401 | `INVALID_CREDENTIALS` | Wrong staff username or password |
 | 401 | `UNAUTHORIZED`, `TOKEN_EXPIRED` | Missing / invalid / expired token |
 | 403 | `FORBIDDEN` | Logged in, but role not allowed |
 | 404 | `*_NOT_FOUND` | Resource does not exist (or not visible to this user) |
@@ -271,6 +273,7 @@ Same as `Complaint` **minus** `reporter`, `escalation_level`, `ai.detected_objec
 { "phone": "+919876543210" }
 ```
 → `200 { "sent": true, "expires_in": 300 }` · In development the OTP is always `123456` and is also printed in the backend log.
+Requesting again within 30 s → `429 RATE_LIMITED`.
 
 **`POST /auth/otp/verify`**
 ```json
@@ -288,25 +291,36 @@ Same as `Complaint` **minus** `reporter`, `escalation_level`, `ai.detected_objec
 }
 ```
 
+Errors: `400 OTP_INVALID` (wrong code), `400 OTP_EXPIRED`, `429 RATE_LIMITED` (after 5 wrong attempts — request a new OTP), `403 FORBIDDEN` (phone belongs to a staff account).
+A new citizen has `name: null` and `ward_id: null` — the app should ask for name and ward and save them with `PATCH /auth/me`.
+
 ### 4.2 Staff login — *Dashboard*
 **`POST /auth/login`**
 ```json
 { "username": "kulkarni.water", "password": "••••••" }
 ```
-→ same response shape as 4.1 (without `is_new_user`).
+→ same response shape as 4.1 (without `is_new_user`). Wrong username/password → `401 INVALID_CREDENTIALS`.
 
 ### 4.3 Common
 | Method | Path | Body / Response |
 |---|---|---|
 | `POST` | `/auth/refresh` | `{ "refresh_token": "..." }` → new tokens |
 | `GET` | `/auth/me` | → `User` |
-| `PATCH` | `/auth/me` | `{ "name"?, "language"?, "ward_id"? }` → `User` |
+| `PATCH` | `/auth/me` | `{ "name"?, "language"?, "ward_id"? }` → `User` (`ward_id` only for citizens; staff → `403`) |
 | `POST` | `/auth/device-token` | `{ "fcm_token": "...", "platform": "android" }` → `204` (Citizen App, for push) |
 
 JWT payload:
 ```json
-{ "sub": "42", "role": "officer", "department": "water", "ward_id": null, "exp": 1759400000 }
+{ "sub": "42", "role": "officer", "department": "water", "ward_id": null, "type": "access", "exp": 1759400000 }
 ```
+`type` is `access` or `refresh`; a refresh token is rejected on normal endpoints.
+
+### 4.4 Wards — *Citizen App + Dashboard*
+**`GET /wards`** — no login required (used by the ward picker on first login)
+```json
+{ "items": [ { "id": 12, "number": 12, "name": "Rajarampuri", "rep_user_id": 7 } ] }
+```
+Sorted by `number`. `rep_user_id` is `null` when the ward has no representative.
 
 ---
 
@@ -655,5 +669,6 @@ Alert model:
 | Version | Date | Change | Approved by |
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
+| 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
 
 > To change this contract: open a PR that edits this file + adds a row here. Prefer **adding** optional fields over renaming/removing (see [Rules.md](Rules.md#3-api-contract-rules)).
