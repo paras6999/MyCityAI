@@ -1,5 +1,7 @@
-from sqlalchemy.orm import DeclarativeBase
+# Import every model here so Alembic autogenerate sees all tables.
+from app.models.base import Base
+from app.models.otp import OtpCode
+from app.models.user import User
+from app.models.ward import Ward
 
-
-class Base(DeclarativeBase):
-    """Base class for all SQLAlchemy models. Import new models below so Alembic sees them."""
+__all__ = ["Base", "OtpCode", "User", "Ward"]

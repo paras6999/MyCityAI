@@ -53,13 +53,31 @@ pytest
 ruff check . && ruff format .
 ```
 
-**5. Migrations** (once models exist)
+**5. Create tables and sample data** (needs the database from step 2)
 ```bash
-alembic revision --autogenerate -m "add users table"
+alembic upgrade head
+python -m app.seed
+```
+The seed adds 20 sample wards and these staff accounts (password = `SEED_STAFF_PASSWORD` from `.env`):
+
+| Username | Role |
+|---|---|
+| `admin` | admin |
+| `mayor` | mayor |
+| `officer.water`, `officer.roads`, `officer.waste`, `officer.electricity`, `officer.drainage`, `officer.health` | officer (one per department) |
+| `wardrep.7`, `wardrep.11`, `wardrep.12`, `wardrep.16` | ward_rep |
+
+Citizens log in with any phone number; in development the OTP is always `DEV_OTP` (default `123456`).
+
+**6. New migration after changing models**
+```bash
+alembic revision --autogenerate -m "describe change"
 alembic upgrade head
 ```
 
 ## Conventions
 - Raise `APIError(status, "CODE", "message")` from `app/core/errors.py` — all errors use the API.md format.
 - Routes are mounted under `/api/v1` in `app/main.py`.
-- New models: subclass `Base` from `app/models/__init__.py` and import them there so Alembic sees them.
+- New models: subclass `Base` from `app/models/base.py` and import them in `app/models/__init__.py` so Alembic sees them.
+- Protect routes with `CurrentUser` (any logged-in user) or `Depends(require_role("officer", ...))` from `app/core/security.py`.
+- Tests use an in-memory SQLite DB with seed data (`tests/conftest.py`), so `pytest` needs no database.
