@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     app_env: str = "development"
-    database_url: str = "postgresql+psycopg://mycity:mycity@localhost:5432/mycity_municipal"
+    database_url: str = "postgresql+psycopg://mycity:mycity@localhost:5433/mycity_municipal"
     # Comma-separated list, e.g. "http://localhost:5173,http://192.168.1.5:5173"
     cors_origins: str = "http://localhost:5173"
 

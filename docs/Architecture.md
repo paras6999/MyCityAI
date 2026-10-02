@@ -138,7 +138,7 @@ MyCityAI/
 | police/backend | 9000 |
 | police/dashboard | 5174 |
 | MediaMTX (WebRTC) | 8889 |
-| PostgreSQL | 5432 (databases: `mycity_municipal`, `mycity_police`) |
+| PostgreSQL (Docker) | 5433 on your PC → 5432 in the container (databases: `mycity_municipal`, `mycity_police`) |
 
 ## 5. Key flows
 
