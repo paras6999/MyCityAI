@@ -41,6 +41,9 @@ class AiInfo(BaseModel):
     category_confidence: float | None = None
     detected_objects: list[str] = []
     summary: str | None = None
+    severity: int | None = None
+    sensitive_location: bool = False
+    model: Literal["gemini", "keywords"] | None = None
 
 
 class PersonRef(BaseModel):
@@ -156,3 +159,24 @@ class CommentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     note: str = Field(min_length=1, max_length=1000)
+
+
+class DuplicateHint(BaseModel):
+    id: int
+    code: str
+    category: Category
+    distance_m: float
+    status: Status
+
+
+class AnalyzeOut(BaseModel):
+    """POST /citizen/complaints/analyze (API.md §5.1)."""
+
+    suggested_category: Category
+    department: Department
+    confidence: float
+    priority_level: PriorityLevel
+    summary: str | None
+    is_civic_issue: bool
+    nearby_duplicates: list[DuplicateHint]
+    active_announcement: dict[str, Any] | None = None  # Phase 6

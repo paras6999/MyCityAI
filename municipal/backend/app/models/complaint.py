@@ -38,8 +38,11 @@ class Complaint(Base):
 
     status: Mapped[str] = mapped_column(String(20), default="new")
     priority_score: Mapped[int] = mapped_column(Integer, default=50)
-    # Filled by the AI agents from Phase 4: category_confidence, detected_objects, summary
+    # AI triage result: category_confidence, detected_objects, summary, severity,
+    # sensitive_location, model ("gemini" or "keywords")
     ai: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Text embedding of the description (Gemini), used for duplicate detection
+    embedding: Mapped[list[float] | None] = mapped_column(JSON)
 
     duplicate_count: Mapped[int] = mapped_column(Integer, default=0)
     merged_into_id: Mapped[int | None] = mapped_column(ForeignKey("complaints.id"))

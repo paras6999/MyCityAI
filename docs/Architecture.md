@@ -157,11 +157,25 @@ Citizen: confirm (closed) / reopen
 Escalation agent (every 5 min): SLA passed → escalation_level +1 → ward rep / mayor
 ```
 
-### 5.2 Priority score
+### 5.2 Priority score (`app/agents/priority.py`)
 ```
-priority = 0.35·severity + 0.20·duplicates + 0.20·location_sensitivity + 0.15·time_pending + 0.10·forecast_risk
+priority = severity                       (0–100, from Gemini; category default without AI)
+         + min(20, 5 × merged duplicates)
+         + 15 if near a school / hospital / bus stop / temple / market
+         + up to 15 as the SLA deadline approaches
+         + up to 10 forecast risk (Utilities agent, Phase 8)
+capped at 100
 ```
-Each term normalised to 0–100. Weights live in config so they can be tuned.
+Severity is the base so a severe new complaint is already "high"; the other signals raise it.
+
+### 5.2a AI triage pipeline (`app/agents/orchestrator.py`, LangGraph)
+```
+analyze (Gemini photo+text → category, severity, summary, objects; keyword fallback)
+  → embed (Gemini text embedding)
+  → find_duplicate (same category, open, ≤ 50 m, similar text)
+  → score (priority)
+```
+Gemini model and embedding model are set in `.env` (`GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL`). YOLOv8 weights from the ML team can later supply detected objects before the Gemini step.
 
 ### 5.3 Police → municipal (accident)
 ```

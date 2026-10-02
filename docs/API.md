@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.3 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.4 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -187,7 +187,10 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
   "ai": {
     "category_confidence": 0.94,
     "detected_objects": ["pothole"],
-    "summary": "Large pothole at bus stop causing two-wheeler falls at night"
+    "summary": "Large pothole at bus stop causing two-wheeler falls at night",
+    "severity": 72,
+    "sensitive_location": true,
+    "model": "gemini"
   },
   "duplicate_count": 3,
   "merged_into_id": null,
@@ -204,10 +207,11 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
 ```
 
 - `photo_url` is a path on the backend (prefix it with the server origin, e.g. `http://<host>:8000/media/...`). It is `null` for complaints without a photo (`police_bridge`, `sensor`, `staff` sources).
-- `priority_score` is `50` (medium) for every complaint until the AI agents are added (Phase 4).
+- `ai.model` is `"gemini"` when Google Gemini analysed the photo + text, or `"keywords"` when the fallback classifier was used (no API key / AI error). `ai.summary` is `null` with the fallback.
+- `priority_score` = AI severity (0–100) + boosts: +5 per merged duplicate (max +20), +15 near a school/hospital/bus stop etc., up to +15 as the SLA deadline approaches, up to +10 forecast risk (Phase 8). Capped at 100.
 
 ### 3.5 `CitizenComplaint` (what the Citizen App sees)
-Same as `Complaint` **minus** `reporter`, `escalation_level`, `ai.detected_objects` and `assigned_to.id`. Citizens only ever see their own complaints.
+Same as `Complaint` **minus** `reporter`, `escalation_level`, `assigned_to.id` and all `ai` fields except `category_confidence` and `summary`. Citizens see their own complaints, plus any complaint their report was merged into (`merged_into_id`).
 
 ### 3.6 `TimelineEvent`
 ```json
@@ -341,11 +345,14 @@ Shows the AI category and duplicate warning before the citizen presses Submit.
   "department": "roads",
   "confidence": 0.94,
   "priority_level": "high",
+  "summary": "Large pothole at bus stop",
+  "is_civic_issue": true,
   "nearby_duplicates": [ { "id": 4180, "code": "KMC-2026-04180", "category": "pothole", "distance_m": 18, "status": "assigned" } ],
   "active_announcement": null
 }
 ```
-If an active announcement explains the issue (e.g. planned water shutdown), `active_announcement` contains that `Announcement` and the app should show it.
+If an active announcement explains the issue (e.g. planned water shutdown), `active_announcement` contains that `Announcement` and the app should show it (from Phase 6).
+`is_civic_issue: false` means the AI thinks the photo shows no municipal problem — the app can ask the citizen to retake it, but submitting is still allowed. `nearby_duplicates` lists open same-category complaints within 50 m (max 5). Nothing is saved by this call.
 
 ### 5.2 Submit complaint
 **`POST /citizen/complaints`** — `multipart/form-data`
@@ -359,8 +366,8 @@ If an active announcement explains the issue (e.g. planned water shutdown), `act
 | `category` | `category` | no — AI decides if missing |
 | `language` | `language` | no (default user's language) |
 
-→ `201` `CitizenComplaint`. If merged into an existing complaint: `status = "merged"`, `merged_into_id` set — the citizen is subscribed to updates of the original (from Phase 4).
-Until Phase 4, a missing `category` becomes `"other"`. Non-JPG/PNG photo → `400 VALIDATION_ERROR`; over 8 MB → `413 FILE_TOO_LARGE`.
+→ `201` `CitizenComplaint`. If it duplicates an open complaint (same category, within 50 m, similar text when available): `status = "merged"`, `merged_into_id` set. The citizen can open the original with `GET /citizen/complaints/{merged_into_id}` and receives its push notifications.
+A missing `category` is chosen by the AI (or the keyword fallback); a category the citizen picked is kept. Non-JPG/PNG photo → `400 VALIDATION_ERROR`; over 8 MB → `413 FILE_TOO_LARGE`.
 
 ### 5.3 My complaints
 | Method | Path | Response |
@@ -411,7 +418,7 @@ Query params (all optional): `status`, `category`, `department`, `ward_id`, `pri
 |---|---|---|
 | `GET` | `/staff/complaints/{id}` | `Complaint` |
 | `GET` | `/staff/complaints/{id}/timeline` | `{ "items": [TimelineEvent] }` |
-| `GET` | `/staff/complaints/{id}/duplicates` | `{ "items": [Complaint] }` merged reports |
+| `GET` | `/staff/complaints/{id}/duplicates` | `{ "items": [Complaint] }` reports merged into this one (oldest first) |
 
 ### 6.4 Update complaint
 **`PATCH /staff/complaints/{id}`**
@@ -692,6 +699,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.4 | 2026-10-02 | AI triage live: `ai.severity/sensitive_location/model`, priority formula, analyze response adds `summary` + `is_civic_issue`, duplicate merging + citizens can view the original | Paras · *Friend: pending* |
 | 0.1.3 | 2026-10-02 | Push via Expo push tokens (not raw FCM); `DELETE /auth/device-token`; WebSocket close codes and implemented events | Paras · *Friend: pending* |
 | 0.1.2 | 2026-10-02 | `photo_url` nullable for non-photo sources; documented complaint submit errors, PATCH rules and roles; citizen timeline excludes internal comments | Paras · *Friend: pending* |
 

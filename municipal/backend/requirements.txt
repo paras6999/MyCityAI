@@ -8,6 +8,8 @@ psycopg[binary]==3.2.*
 python-multipart==0.0.*
 pyjwt==2.*
 bcrypt==4.*
+google-genai>=1.0,<3
+langgraph>=1.0,<2
 
 # dev
 pytest==8.*

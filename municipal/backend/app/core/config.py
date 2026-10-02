@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     push_enabled: bool = True
     expo_push_url: str = "https://exp.host/--/api/v2/push/send"
 
+    # AI (Google Gemini). Without a key the keyword fallback classifier is used.
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_embedding_model: str = "gemini-embedding-001"
+    ai_timeout_seconds: int = 20
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

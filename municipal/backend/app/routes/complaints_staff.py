@@ -90,6 +90,18 @@ def publish_update(complaint: Complaint, out: ComplaintOut) -> None:
     )
 
 
+@router.get("/complaints/{complaint_id}/duplicates", response_model=ItemList[ComplaintOut])
+def get_duplicates(complaint_id: int, db: DB, user: Staff):
+    """Reports merged into this complaint (API.md §6.3)."""
+    complaint = service.get_for_staff(db, complaint_id, user)
+    merged = db.scalars(
+        select(Complaint)
+        .where(Complaint.merged_into_id == complaint.id)
+        .order_by(Complaint.created_at)
+    )
+    return ItemList(items=[service.to_staff_out(c) for c in merged])
+
+
 @router.patch("/complaints/{complaint_id}", response_model=ComplaintOut)
 def update_complaint(
     complaint_id: int, body: ComplaintUpdate, db: DB, user: Editor, background: BackgroundTasks

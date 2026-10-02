@@ -64,8 +64,14 @@ def build_status_push(
         return None
     reporter = db.get(User, complaint.reporter_id)
     body = status_message(status, reporter.language if reporter else "en", complaint.code, note)
+    # Citizens whose duplicate reports were merged into this complaint follow it too.
+    followers = select(Complaint.reporter_id).where(Complaint.merged_into_id == complaint.id)
     tokens = list(
-        db.scalars(select(DeviceToken.token).where(DeviceToken.user_id == complaint.reporter_id))
+        db.scalars(
+            select(DeviceToken.token).where(
+                (DeviceToken.user_id == complaint.reporter_id) | DeviceToken.user_id.in_(followers)
+            )
+        )
     )
     if body is None or not tokens:
         return None

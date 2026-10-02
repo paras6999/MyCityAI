@@ -57,7 +57,10 @@ def test_citizen_submits_complaint(client):
     assert body["status"] == "new"
     assert body["department"] == "roads"
     assert body["sla_hours"] == 48
-    assert body["priority_level"] == "medium"
+    # keyword fallback: pothole severity 60 + "bus stop" sensitive-location boost 15
+    assert body["priority_score"] == 75
+    assert body["priority_level"] == "high"
+    assert body["ai"]["category_confidence"] == 1.0  # category chosen by the citizen
     assert body["location"]["ward_id"] is not None
     assert body["photo_url"] == f"/media/complaints/{body['id']}/photo.png"
     assert "reporter" not in body  # citizens don't see the reporter block
@@ -71,11 +74,13 @@ def test_complaint_gets_nearest_ward(client):
     assert next(w for w in wards if w["id"] == body["location"]["ward_id"])["number"] == 12
 
 
-def test_missing_category_defaults_to_other(client):
-    body = submit(client, citizen_token(client))
+def test_missing_category_is_classified_from_text(client):
+    token = citizen_token(client)
 
-    assert body["category"] == "other"
-    assert body["department"] == "other"
+    assert submit(client, token, description="Big khadda on the main road")["category"] == "pothole"
+    unclear = submit(client, token, description="Please look into this", lat="16.70", lng="74.20")
+    assert unclear["category"] == "other"
+    assert unclear["department"] == "other"
 
 
 def test_photo_must_be_an_image(client):
@@ -120,7 +125,7 @@ def test_citizen_timeline_and_home(client):
     ).json()["items"]
     home = client.get("/api/v1/citizen/home", headers=auth_header(token)).json()
 
-    assert [e["type"] for e in timeline] == ["created"]
+    assert [e["type"] for e in timeline] == ["created", "classified"]
     assert home["open_complaints"] == 1
     assert home["recent_complaints"][0]["id"] == complaint["id"]
     assert home["announcements"] == []
@@ -199,7 +204,7 @@ def test_assigning_moves_to_assigned_and_logs_timeline(client):
 
     assert body["status"] == "assigned"
     assert body["assigned_to"]["id"] == officer_id
-    assert [e["type"] for e in timeline] == ["created", "assigned", "status_changed"]
+    assert [e["type"] for e in timeline] == ["created", "classified", "assigned", "status_changed"]
 
 
 def test_cannot_assign_officer_from_other_department(client):
@@ -306,4 +311,4 @@ def test_citizen_timeline_hides_internal_comments(client):
         f"/api/v1/citizen/complaints/{complaint['id']}/timeline", headers=auth_header(token)
     ).json()["items"]
 
-    assert [e["type"] for e in timeline] == ["created"]
+    assert [e["type"] for e in timeline] == ["created", "classified"]
