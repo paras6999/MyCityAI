@@ -48,7 +48,8 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** officer sees new complaint instantly; citizen gets push on status change.
 
 ## Phase 4 — AI classification & priority (Weeks 6–7)
-- [ ] ML: YOLOv8 model for potholes, garbage, waterlogging (train on Colab, weights outside git) — optional now that Gemini covers vision
+- [x] P: local YOLO detection step + model registry (`ml/vision/models.json`), free HF pothole placeholder
+- [ ] ML: train `mycityai-yolov8s-v1` (pothole, road_crack, garbage_pile, overflowing_bin, construction_debris, fallen_tree, broken_streetlight, waterlogging, drain_overflow, open_manhole, water_leak) — see docs/ML.md
 - [x] P: photo + text classification (Gemini; keyword fallback) — replaces Sentence-BERT for now
 - [x] P: duplicate detection (embedding similarity + distance < 50 m) → `merged`
 - [x] P: priority score + SLA calculation

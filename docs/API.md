@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.4 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.5 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -190,7 +190,8 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
     "summary": "Large pothole at bus stop causing two-wheeler falls at night",
     "severity": 72,
     "sensitive_location": true,
-    "model": "gemini"
+    "model": "yolo",
+    "detections": [ { "label": "pothole", "confidence": 0.91, "box": [0.33, 0.68, 0.59, 0.87] } ]
   },
   "duplicate_count": 3,
   "merged_into_id": null,
@@ -207,7 +208,8 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
 ```
 
 - `photo_url` is a path on the backend (prefix it with the server origin, e.g. `http://<host>:8000/media/...`). It is `null` for complaints without a photo (`police_bridge`, `sensor`, `staff` sources).
-- `ai.model` is `"gemini"` when Google Gemini analysed the photo + text, or `"keywords"` when the fallback classifier was used (no API key / AI error). `ai.summary` is `null` with the fallback.
+- `ai.model`: `"yolo"` when our local YOLO model detected objects in the photo, `"gemini"` when Google Gemini analysed it, `"keywords"` for the text-only fallback. Category priority: citizen's choice > YOLO > Gemini > keywords. `ai.summary` comes from Gemini only (else `null`).
+- `ai.detections`: objects found by YOLO — `label` (a category), `confidence`, `box` = `[x1, y1, x2, y2]` as fractions (0–1) of the photo's width/height, so apps can draw boxes at any size.
 - `priority_score` = AI severity (0–100) + boosts: +5 per merged duplicate (max +20), +15 near a school/hospital/bus stop etc., up to +15 as the SLA deadline approaches, up to +10 forecast risk (Phase 8). Capped at 100.
 
 ### 3.5 `CitizenComplaint` (what the Citizen App sees)
@@ -347,6 +349,7 @@ Shows the AI category and duplicate warning before the citizen presses Submit.
   "priority_level": "high",
   "summary": "Large pothole at bus stop",
   "is_civic_issue": true,
+  "detections": [ { "label": "pothole", "confidence": 0.91, "box": [0.33, 0.68, 0.59, 0.87] } ],
   "nearby_duplicates": [ { "id": 4180, "code": "KMC-2026-04180", "category": "pothole", "distance_m": 18, "status": "assigned" } ],
   "active_announcement": null
 }
@@ -699,6 +702,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.5 | 2026-10-02 | Local YOLO detection: `ai.model` adds `"yolo"`, new `ai.detections` (boxes) in complaints and the analyze response | Paras · *Friend: pending* |
 | 0.1.4 | 2026-10-02 | AI triage live: `ai.severity/sensitive_location/model`, priority formula, analyze response adds `summary` + `is_civic_issue`, duplicate merging + citizens can view the original | Paras · *Friend: pending* |
 | 0.1.3 | 2026-10-02 | Push via Expo push tokens (not raw FCM); `DELETE /auth/device-token`; WebSocket close codes and implemented events | Paras · *Friend: pending* |
 | 0.1.2 | 2026-10-02 | `photo_url` nullable for non-photo sources; documented complaint submit errors, PATCH rules and roles; citizen timeline excludes internal comments | Paras · *Friend: pending* |

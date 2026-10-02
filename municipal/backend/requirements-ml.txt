@@ -1,0 +1,4 @@
+# Optional: local YOLO photo detection (app/agents/vision.py).
+# CPU-only PyTorch keeps the install small; drop the index URL if you have an NVIDIA GPU.
+#   pip install -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
+ultralytics>=8.3,<9

@@ -37,13 +37,22 @@ class Location(BaseModel):
     ward_id: int | None
 
 
+class DetectionOut(BaseModel):
+    """One object found by the YOLO model. `box` = [x1, y1, x2, y2] as fractions of the photo."""
+
+    label: Category
+    confidence: float
+    box: list[float]
+
+
 class AiInfo(BaseModel):
     category_confidence: float | None = None
     detected_objects: list[str] = []
     summary: str | None = None
     severity: int | None = None
     sensitive_location: bool = False
-    model: Literal["gemini", "keywords"] | None = None
+    model: Literal["yolo", "gemini", "keywords"] | None = None
+    detections: list[DetectionOut] = []
 
 
 class PersonRef(BaseModel):
@@ -178,5 +187,6 @@ class AnalyzeOut(BaseModel):
     priority_level: PriorityLevel
     summary: str | None
     is_civic_issue: bool
+    detections: list[DetectionOut]
     nearby_duplicates: list[DuplicateHint]
     active_announcement: dict[str, Any] | None = None  # Phase 6

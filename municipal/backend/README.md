@@ -75,6 +75,12 @@ python -m app.seed --demo
 ```
 Uploaded photos are saved under `MEDIA_DIR` (default `media/`, git-ignored) and served at `/media/...`.
 
+**Photo detection (YOLO, free, offline):**
+```bash
+pip install -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
+```
+On first start the backend downloads the models listed in `ml/vision/models.json` into `models/` (git-ignored; SHA-256 checked) and warms them up. Without these packages the backend still works and falls back to Gemini / keywords. To use the team's trained model see [docs/ML.md](../../docs/ML.md).
+
 **AI (Gemini):** create a free key at https://aistudio.google.com/apikey and set `GEMINI_API_KEY` in `.env`. Without a key (or if Gemini fails) complaints are still classified by the keyword fallback in `app/agents/fallback.py`. The pipeline lives in `app/agents/` (see `orchestrator.py`). Tests never call the real API.
 
 **6. New migration after changing models**

@@ -1,8 +1,10 @@
 """Complaint triage pipeline built with LangGraph.
 
-    analyze ──► embed ──► find_duplicate ──► score
+    detect ──► analyze ──► embed ──► find_duplicate ──► score
 
-analyze         Gemini reads photo + description (keyword fallback without AI)
+detect          local YOLO models find potholes, animals, ... in the photo (free, offline)
+analyze         combines: citizen's choice > YOLO > Gemini > keywords for the category;
+                Gemini (optional) adds severity and a summary
 embed           text embedding of the description, used to compare with nearby complaints
 find_duplicate  same-category open complaint within 50 m (and similar text, when available)
 score           priority 0-100 from severity, sensitive location and duplicates
@@ -17,7 +19,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from sqlalchemy.orm import Session
 
-from app.agents import fallback, gemini
+from app.agents import fallback, gemini, vision
 from app.agents.duplicates import find_duplicate
 from app.agents.priority import compute_priority
 from app.core.constants import category_info
@@ -32,6 +34,7 @@ class TriageState(TypedDict, total=False):
     lng: float
     chosen_category: str | None
     # outputs
+    detections: list[vision.Detection] | None
     category: str
     confidence: float
     severity: int
@@ -46,34 +49,54 @@ class TriageState(TypedDict, total=False):
     priority: int
 
 
+def detect_objects(state: TriageState) -> dict[str, Any]:
+    return {"detections": vision.detect(state["image"])}
+
+
 def analyze(state: TriageState) -> dict[str, Any]:
     description = state.get("description")
     chosen = state.get("chosen_category")
-    result = gemini.analyze_issue(state["image"], state["mime_type"], description)
-    if result is not None:
-        return {
-            # A category the citizen picked themselves wins; AI fills in everything else.
-            "category": chosen or result.category,
-            "confidence": result.confidence,
-            "severity": result.severity,
-            "summary": result.summary,
-            "detected_objects": result.detected_objects,
-            "sensitive_location": result.sensitive_location
-            or fallback.mentions_sensitive_place(description),
-            "is_civic_issue": result.is_civic_issue,
-            "model": "gemini",
-        }
-    category, confidence = fallback.classify_text(description)
-    category = chosen or category
+    detections = state.get("detections") or []
+    vision_pick = vision.best_category(detections)
+    ai = gemini.analyze_issue(state["image"], state["mime_type"], description)
+
+    # Category: what the citizen picked > what our model saw > Gemini > keywords
+    if chosen:
+        category, confidence = chosen, 1.0
+    elif vision_pick:
+        category, confidence = vision_pick
+    elif ai is not None:
+        category, confidence = ai.category, ai.confidence
+    else:
+        category, confidence = fallback.classify_text(description)
+
+    if ai is not None:
+        severity = ai.severity
+    elif any(d.category == category for d in detections):
+        severity = vision.severity_from(category, detections)
+    else:
+        severity = fallback.DEFAULT_SEVERITY[category]
+
+    if detections:
+        model = "yolo"
+    elif ai is not None:
+        model = "gemini"
+    else:
+        model = "keywords"
+
+    objects = list(
+        dict.fromkeys([d.category for d in detections] + (ai.detected_objects if ai else []))
+    )
     return {
         "category": category,
-        "confidence": 1.0 if chosen else confidence,
-        "severity": fallback.DEFAULT_SEVERITY[category],
-        "summary": None,
-        "detected_objects": [],
-        "sensitive_location": fallback.mentions_sensitive_place(description),
-        "is_civic_issue": True,
-        "model": "keywords",
+        "confidence": confidence,
+        "severity": severity,
+        "summary": ai.summary if ai else None,
+        "detected_objects": objects,
+        "sensitive_location": bool(ai and ai.sensitive_location)
+        or fallback.mentions_sensitive_place(description),
+        "is_civic_issue": bool(detections) or (ai.is_civic_issue if ai else True),
+        "model": model,
     }
 
 
@@ -102,11 +125,13 @@ def score(state: TriageState) -> dict[str, Any]:
 
 def _build_graph():
     graph = StateGraph(TriageState)
+    graph.add_node("detect", detect_objects)
     graph.add_node("analyze", analyze)
     graph.add_node("embed", embed)
     graph.add_node("find_duplicate", check_duplicate)
     graph.add_node("score", score)
-    graph.add_edge(START, "analyze")
+    graph.add_edge(START, "detect")
+    graph.add_edge("detect", "analyze")
     graph.add_edge("analyze", "embed")
     graph.add_edge("embed", "find_duplicate")
     graph.add_edge("find_duplicate", "score")
@@ -132,6 +157,7 @@ class Triage:
     priority: int
     duplicate_id: int | None
     duplicate_distance_m: float | None
+    detections: list[vision.Detection]
 
     @property
     def ai_info(self) -> dict[str, Any]:
@@ -143,6 +169,7 @@ class Triage:
             "severity": self.severity,
             "sensitive_location": self.sensitive_location,
             "model": self.model,
+            "detections": [d.to_json() for d in self.detections],
         }
 
 
@@ -181,4 +208,5 @@ def run_triage(
         priority=state["priority"],
         duplicate_id=state.get("duplicate_id"),
         duplicate_distance_m=state.get("duplicate_distance_m"),
+        detections=state.get("detections") or [],
     )

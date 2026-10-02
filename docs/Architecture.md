@@ -170,12 +170,13 @@ Severity is the base so a severe new complaint is already "high"; the other sign
 
 ### 5.2a AI triage pipeline (`app/agents/orchestrator.py`, LangGraph)
 ```
-analyze (Gemini photo+text → category, severity, summary, objects; keyword fallback)
+detect (local YOLO models from ml/vision/models.json — free, offline)
+  → analyze (category: citizen > YOLO > Gemini > keywords; Gemini adds severity + summary when a key is set)
   → embed (Gemini text embedding)
   → find_duplicate (same category, open, ≤ 50 m, similar text)
   → score (priority)
 ```
-Gemini model and embedding model are set in `.env` (`GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL`). YOLOv8 weights from the ML team can later supply detected objects before the Gemini step.
+Gemini model and embedding model are set in `.env` (`GEMINI_MODEL`, `GEMINI_EMBEDDING_MODEL`). YOLO models are listed in `ml/vision/models.json`; today a free Hugging Face pothole model is a placeholder until the ML team's own model is trained ([ML.md](ML.md)).
 
 ### 5.3 Police → municipal (accident)
 ```

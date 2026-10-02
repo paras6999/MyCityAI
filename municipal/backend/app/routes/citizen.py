@@ -61,6 +61,7 @@ def analyze_photo(
         priority_level=priority_level(triage.priority),
         summary=triage.summary,
         is_civic_issue=triage.is_civic_issue,
+        detections=[d.to_json() for d in triage.detections],
         nearby_duplicates=[
             DuplicateHint(
                 id=c.complaint.id,

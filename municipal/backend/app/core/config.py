@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     gemini_embedding_model: str = "gemini-embedding-001"
     ai_timeout_seconds: int = 20
 
+    # Local YOLO photo detection (needs requirements-ml.txt). Models: ml/vision/models.json
+    vision_enabled: bool = True
+    vision_models_file: str | None = None
+    models_dir: str = "models"
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
