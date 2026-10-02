@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,6 +21,8 @@ from app.schemas.complaint import (
 )
 from app.schemas.user import UserOut
 from app.services import complaints as service
+from app.services import push
+from app.services.realtime import hub
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 DB = Annotated[Session, Depends(get_db)]
@@ -79,13 +81,41 @@ def get_timeline(complaint_id: int, db: DB, user: Staff):
     return ItemList(items=[TimelineEventOut.model_validate(e) for e in events])
 
 
+def publish_update(complaint: Complaint, out: ComplaintOut) -> None:
+    hub.publish(
+        "complaint.updated",
+        out.model_dump(mode="json"),
+        department=complaint.department,
+        ward_id=complaint.ward_id,
+    )
+
+
 @router.patch("/complaints/{complaint_id}", response_model=ComplaintOut)
-def update_complaint(complaint_id: int, body: ComplaintUpdate, db: DB, user: Editor):
+def update_complaint(
+    complaint_id: int, body: ComplaintUpdate, db: DB, user: Editor, background: BackgroundTasks
+):
     complaint = service.get_for_staff(db, complaint_id, user)
+    previous_department = complaint.department
+    previous_status = complaint.status
     service.update_complaint(db, complaint, user, body)
     db.commit()
     db.refresh(complaint)
-    return service.to_staff_out(complaint)
+    out = service.to_staff_out(complaint)
+
+    publish_update(complaint, out)
+    if complaint.department != previous_department:
+        # Let the old department's dashboards drop the complaint from their queue.
+        hub.publish(
+            "complaint.updated",
+            out.model_dump(mode="json"),
+            department=previous_department,
+            ward_id=None,
+        )
+    if complaint.status != previous_status:
+        notification = push.build_status_push(db, complaint, complaint.status, body.note)
+        if notification:
+            background.add_task(push.deliver, notification)
+    return out
 
 
 @router.post("/complaints/{complaint_id}/comments", response_model=ComplaintOut)
@@ -93,7 +123,9 @@ def add_comment(complaint_id: int, body: CommentCreate, db: DB, user: Staff):
     complaint = service.get_for_staff(db, complaint_id, user)
     service.add_event(db, complaint, "comment", user, note=body.note)
     db.commit()
-    return service.to_staff_out(complaint)
+    out = service.to_staff_out(complaint)
+    publish_update(complaint, out)
+    return out
 
 
 @router.get("/users", response_model=ItemList[UserOut])
