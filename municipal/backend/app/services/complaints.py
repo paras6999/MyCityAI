@@ -7,6 +7,8 @@ from typing import Literal
 from sqlalchemy import Select, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.agents.fallback import DEFAULT_SEVERITY
+from app.agents.priority import compute_priority
 from app.core.constants import allowed_transitions, category_info, load_constants, priority_level
 from app.core.errors import APIError
 from app.models import Complaint, TimelineEvent, User, Ward
@@ -23,7 +25,7 @@ from app.schemas.complaint import (
 )
 from app.services.media import media_url
 
-# Until the AI agents arrive (Phase 4) every complaint starts at "medium" priority.
+# Used only when a complaint is created without AI triage (e.g. demo seed data).
 DEFAULT_PRIORITY = 50
 DUE_SOON_HOURS = 12
 # Statuses where the SLA clock no longer matters.
@@ -94,6 +96,9 @@ def create_complaint(
     language: str = "en",
     source: str = "citizen_app",
     created_at: datetime | None = None,
+    priority: int = DEFAULT_PRIORITY,
+    ai: dict | None = None,
+    embedding: list[float] | None = None,
 ) -> Complaint:
     """Create a complaint with its code, SLA, ward and first timeline event. Caller commits."""
     info = category_info(category)
@@ -109,7 +114,9 @@ def create_complaint(
         address=address,
         ward_id=nearest_ward_id(db, lat, lng) or (reporter.ward_id if reporter else None),
         status="new",
-        priority_score=DEFAULT_PRIORITY,
+        priority_score=priority,
+        ai=ai,
+        embedding=embedding,
         reporter_id=reporter.id if reporter else None,
         sla_hours=info["sla_hours"],
         sla_due_at=created + timedelta(hours=info["sla_hours"]),
@@ -120,7 +127,40 @@ def create_complaint(
     db.flush()  # assigns the id used in the code
     complaint.code = f"KMC-{created.year}-{complaint.id:05d}"
     add_event(db, complaint, "created", reporter, to_status="new")
+    if ai and ai.get("model"):
+        note = f"AI: {category} ({round(100 * (ai.get('category_confidence') or 0))}% confident)"
+        add_event(db, complaint, "classified", note=note)
     return complaint
+
+
+def rescore(complaint: Complaint) -> None:
+    """Recompute priority after duplicates or waiting time change."""
+    ai = complaint.ai or {}
+    created, due = _aware(complaint.created_at), _aware(complaint.sla_due_at)
+    window = (due - created).total_seconds() or 1
+    complaint.priority_score = compute_priority(
+        severity=ai.get("severity") or DEFAULT_SEVERITY.get(complaint.category, 50),
+        duplicate_count=complaint.duplicate_count,
+        sensitive_location=bool(ai.get("sensitive_location")),
+        sla_elapsed_fraction=(_now() - created).total_seconds() / window,
+    )
+
+
+def merge_into(db: Session, duplicate: Complaint, original: Complaint) -> None:
+    """Mark `duplicate` as another report of `original` and raise the original's priority."""
+    duplicate.status = "merged"
+    duplicate.merged_into_id = original.id
+    add_event(db, duplicate, "merged", to_status="merged", note=f"Same issue as {original.code}")
+    original.duplicate_count += 1
+    rescore(original)
+    original.updated_at = _now()
+    add_event(
+        db,
+        original,
+        "merged",
+        note=f"Another citizen reported this ({duplicate.code}). "
+        f"Reports: {original.duplicate_count + 1}",
+    )
 
 
 # --- visibility & listing ----------------------------------------------------
@@ -144,8 +184,17 @@ def get_for_staff(db: Session, complaint_id: int, user: User) -> Complaint:
 
 
 def get_for_citizen(db: Session, complaint_id: int, user: User) -> Complaint:
+    """The citizen's own complaint, or an original their report was merged into."""
     complaint = db.get(Complaint, complaint_id)
-    if complaint is None or complaint.reporter_id != user.id:
+    if complaint is not None and complaint.reporter_id != user.id:
+        merged_report = db.scalar(
+            select(Complaint.id).where(
+                Complaint.merged_into_id == complaint.id, Complaint.reporter_id == user.id
+            )
+        )
+        if merged_report is None:
+            complaint = None
+    if complaint is None:
         raise APIError(404, "COMPLAINT_NOT_FOUND", f"Complaint {complaint_id} not found")
     return complaint
 
@@ -164,6 +213,9 @@ def apply_staff_filters(
 ) -> Select:
     if status:
         stmt = stmt.where(Complaint.status == status)
+    else:
+        # Merged reports live under their original (GET .../duplicates), not in the queue.
+        stmt = stmt.where(Complaint.status != "merged")
     if category:
         stmt = stmt.where(Complaint.category == category)
     if department:

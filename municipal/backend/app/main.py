@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from app.agents import vision
 from app.core.config import API_VERSION, get_settings
 from app.core.errors import register_error_handlers
 from app.routes import auth, citizen, complaints_staff, health, wards, ws
@@ -16,11 +17,13 @@ API_PREFIX = "/api/v1"
 
 # Show the app's own log lines (dev OTP, push results, errors) next to uvicorn's.
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:     %(name)s - %(message)s")
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     hub.bind_loop(asyncio.get_running_loop())
+    vision.preload()
     yield
 
 

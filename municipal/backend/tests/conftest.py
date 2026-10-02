@@ -16,6 +16,14 @@ SEED_PASSWORD = get_settings().seed_staff_password
 DEV_OTP = get_settings().dev_otp
 
 
+@pytest.fixture(autouse=True)
+def no_real_gemini(monkeypatch):
+    """Tests never call the real Gemini API, even if GEMINI_API_KEY is set in .env."""
+    monkeypatch.setattr("app.agents.gemini._client", lambda: None)
+    # ...and never load YOLO models (slow); tests that need detections fake vision.detect.
+    monkeypatch.setattr("app.agents.vision._load_models", lambda: [])
+
+
 @pytest.fixture
 def db() -> Iterator[Session]:
     """Fresh in-memory SQLite database per test, with seed data loaded."""

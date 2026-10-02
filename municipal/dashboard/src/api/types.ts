@@ -117,6 +117,24 @@ export interface Location {
   ward_id: number | null
 }
 
+/** One object found by the YOLO model; box = [x1, y1, x2, y2] as fractions of the photo. */
+export interface Detection {
+  label: Category
+  confidence: number
+  box: number[]
+}
+
+/** API.md §3.4 `ai` */
+export interface AiInfo {
+  category_confidence: number | null
+  detected_objects: string[]
+  summary: string | null
+  severity: number | null
+  sensitive_location: boolean
+  model: 'yolo' | 'gemini' | 'keywords' | null
+  detections: Detection[]
+}
+
 /** API.md §3.4 */
 export interface Complaint {
   id: number
@@ -130,7 +148,7 @@ export interface Complaint {
   status: Status
   priority_score: number
   priority_level: PriorityLevel
-  ai: { category_confidence: number | null; detected_objects: string[]; summary: string | null } | null
+  ai: AiInfo | null
   duplicate_count: number
   merged_into_id: number | null
   assigned_to: { id: number; name: string | null } | null

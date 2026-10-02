@@ -6,14 +6,23 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.constants import limit
+from app.agents.duplicates import nearby_open_complaints
+from app.agents.orchestrator import run_triage
+from app.core.constants import limit, priority_level
 from app.core.db import get_db
 from app.core.security import require_role
 from app.models import Complaint, TimelineEvent, User, Ward
 from app.schemas.common import ItemList, Language, Page
-from app.schemas.complaint import Category, CitizenComplaintOut, Status, TimelineEventOut
+from app.schemas.complaint import (
+    AnalyzeOut,
+    Category,
+    CitizenComplaintOut,
+    DuplicateHint,
+    Status,
+    TimelineEventOut,
+)
 from app.services import complaints as service
-from app.services.media import read_image, save_complaint_photo
+from app.services.media import mime_for, read_image, save_complaint_photo
 from app.services.realtime import hub
 
 router = APIRouter(prefix="/citizen", tags=["citizen"])
@@ -21,8 +30,53 @@ DB = Annotated[Session, Depends(get_db)]
 Citizen = Annotated[User, Depends(require_role("citizen"))]
 
 
+def _clean(text: str | None) -> str | None:
+    return (text or "").strip() or None
+
+
+@router.post("/complaints/analyze", response_model=AnalyzeOut)
+def analyze_photo(
+    db: DB,
+    user: Citizen,
+    photo: Annotated[UploadFile, File()],
+    lat: Annotated[float, Form(ge=-90, le=90)],
+    lng: Annotated[float, Form(ge=-180, le=180)],
+    description: Annotated[str | None, Form(max_length=limit("description_max_chars"))] = None,
+):
+    """Preview before submitting: AI category, priority and nearby duplicates. Saves nothing."""
+    data, extension = read_image(photo)
+    triage = run_triage(
+        db,
+        image=data,
+        mime_type=mime_for(extension),
+        description=_clean(description),
+        lat=lat,
+        lng=lng,
+    )
+    nearby = nearby_open_complaints(db, triage.category, lat, lng)
+    return AnalyzeOut(
+        suggested_category=triage.category,
+        department=triage.department,
+        confidence=round(triage.confidence, 2),
+        priority_level=priority_level(triage.priority),
+        summary=triage.summary,
+        is_civic_issue=triage.is_civic_issue,
+        detections=[d.to_json() for d in triage.detections],
+        nearby_duplicates=[
+            DuplicateHint(
+                id=c.complaint.id,
+                code=c.complaint.code,
+                category=c.complaint.category,
+                distance_m=round(c.distance_m, 1),
+                status=c.complaint.status,
+            )
+            for c in nearby[:5]
+        ],
+    )
+
+
 @router.post("/complaints", status_code=201, response_model=CitizenComplaintOut)
-async def submit_complaint(
+def submit_complaint(
     db: DB,
     user: Citizen,
     photo: Annotated[UploadFile, File()],
@@ -33,27 +87,53 @@ async def submit_complaint(
     category: Annotated[Category | None, Form()] = None,
     language: Annotated[Language | None, Form()] = None,
 ):
-    data, extension = await read_image(photo)
+    data, extension = read_image(photo)
+    description = _clean(description)
+    triage = run_triage(
+        db,
+        image=data,
+        mime_type=mime_for(extension),
+        description=description,
+        lat=lat,
+        lng=lng,
+        chosen_category=category,
+    )
     complaint = service.create_complaint(
         db,
         reporter=user,
-        # The AI classifier fills the category from Phase 4; until then "other" when not chosen.
-        category=category or "other",
+        category=triage.category,
         lat=lat,
         lng=lng,
-        description=(description or "").strip() or None,
-        address=(address or "").strip() or None,
+        description=description,
+        address=_clean(address),
         language=language or user.language,
+        priority=triage.priority,
+        ai=triage.ai_info,
+        embedding=triage.embedding,
     )
     complaint.photo_path = save_complaint_photo(complaint.id, "photo", data, extension)
+
+    original = db.get(Complaint, triage.duplicate_id) if triage.duplicate_id else None
+    if original is not None:
+        service.merge_into(db, complaint, original)
     db.commit()
     db.refresh(complaint)
-    hub.publish(
-        "complaint.created",
-        service.to_staff_out(complaint).model_dump(mode="json"),
-        department=complaint.department,
-        ward_id=complaint.ward_id,
-    )
+
+    if original is not None:
+        db.refresh(original)
+        hub.publish(
+            "complaint.updated",
+            service.to_staff_out(original).model_dump(mode="json"),
+            department=original.department,
+            ward_id=original.ward_id,
+        )
+    else:
+        hub.publish(
+            "complaint.created",
+            service.to_staff_out(complaint).model_dump(mode="json"),
+            department=complaint.department,
+            ward_id=complaint.ward_id,
+        )
     return service.to_citizen_out(complaint)
 
 

@@ -188,7 +188,9 @@ export function ComplaintQueuePage({ titleKey, detailBase }: { titleKey: string;
                     </td>
                     <td className="max-w-72 px-4 py-3">
                       <div className="font-medium">{t(`category.${complaint.category}`)}</div>
-                      <div className="truncate text-xs text-muted">{complaint.description}</div>
+                      <div className="truncate text-xs text-muted">
+                        {complaint.ai?.summary ?? complaint.description}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs">
                       {ward ? `${ward.number} · ${ward.name}` : '—'}

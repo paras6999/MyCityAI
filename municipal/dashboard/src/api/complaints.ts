@@ -41,6 +41,11 @@ export async function getTimeline(id: number): Promise<TimelineEvent[]> {
   return data.items
 }
 
+export async function getDuplicates(id: number): Promise<Complaint[]> {
+  const { data } = await api.get<ListResponse<Complaint>>(`/staff/complaints/${id}/duplicates`)
+  return data.items
+}
+
 export async function updateComplaint(id: number, body: ComplaintUpdate): Promise<Complaint> {
   const { data } = await api.patch<Complaint>(`/staff/complaints/${id}`, body)
   return data

@@ -182,7 +182,10 @@
     "source": "Source",
     "location": "Location",
     "actions": "Actions",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "duplicates": "Other reports of this issue",
+    "duplicatesNone": "No other citizen has reported this yet.",
+    "mergedInto": "This report was merged into"
   },
   "actions": {
     "assignTo": "Assign to",
@@ -201,7 +204,7 @@
   },
   "timeline": {
     "created": "Complaint submitted",
-    "classified": "Category updated",
+    "classified": "Categorised",
     "merged": "Merged with a duplicate",
     "assigned": "Assignment changed",
     "statusChanged": "Status: {{status}}",
@@ -221,5 +224,21 @@
     "liveHint": "New complaints and changes appear automatically",
     "reconnectingHint": "Lost connection to live updates — retrying",
     "newComplaint": "New complaint: {{category}}"
+  },
+  "ai": {
+    "title": "AI analysis",
+    "gemini": "Gemini",
+    "keywords": "Keyword match",
+    "geminiHint": "Photo and description analysed by Google Gemini",
+    "keywordsHint": "AI was unavailable; category guessed from keywords",
+    "confidence": "Category confidence",
+    "severity": "Severity",
+    "objects": "Seen in photo",
+    "sensitive": "Near a school, hospital, bus stop or other busy place",
+    "noSummary": "No AI summary for this complaint.",
+    "yolo": "Our YOLO model",
+    "yoloHint": "Detected in the photo by the local YOLO model (free, offline)",
+    "showBoxes_one": "Show detected object",
+    "showBoxes_other": "Show {{count}} detected objects"
   }
 }

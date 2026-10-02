@@ -48,14 +48,15 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** officer sees new complaint instantly; citizen gets push on status change.
 
 ## Phase 4 — AI classification & priority (Weeks 6–7)
-- [ ] P / ML: YOLOv8 model for potholes, garbage, waterlogging (train on Colab, weights outside git)
-- [ ] P: text classifier (Sentence-BERT) + combine with photo result
-- [ ] P: duplicate detection (embedding similarity + distance < 50 m) → `merged`
-- [ ] P: priority score + SLA calculation
-- [ ] P: `POST /citizen/complaints/analyze`
-- [ ] P: LangGraph orchestrator wiring these steps; safe fallbacks if AI fails
+- [x] P: local YOLO detection step + model registry (`ml/vision/models.json`), free HF pothole placeholder
+- [ ] ML: train `mycityai-yolov8s-v1` (pothole, road_crack, garbage_pile, overflowing_bin, construction_debris, fallen_tree, broken_streetlight, waterlogging, drain_overflow, open_manhole, water_leak) — see docs/ML.md
+- [x] P: photo + text classification (Gemini; keyword fallback) — replaces Sentence-BERT for now
+- [x] P: duplicate detection (embedding similarity + distance < 50 m) → `merged`
+- [x] P: priority score + SLA calculation
+- [x] P: `POST /citizen/complaints/analyze`
+- [x] P: LangGraph orchestrator wiring these steps; safe fallbacks if AI fails
 - [ ] F: show AI category, confidence and duplicate warning before submit
-- [ ] P: dashboard shows priority badge, AI summary, duplicate count; queue sorted by priority
+- [x] P: dashboard shows priority badge, AI summary, duplicate count; queue sorted by priority
 
 **Done when:** pothole photo is auto-classified to Roads with priority; second nearby report is merged.
 
