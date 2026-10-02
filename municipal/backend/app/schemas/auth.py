@@ -48,3 +48,12 @@ class TokenResponse(BaseModel):
 
 class OtpTokenResponse(TokenResponse):
     is_new_user: bool
+
+
+class DeviceTokenIn(BaseModel):
+    """POST/DELETE /auth/device-token — Expo push token of the citizen's phone."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    token: str = Field(pattern=r"^Expo(nent)?PushToken\[.+\]$", max_length=255)
+    platform: Literal["android", "ios"] = "android"

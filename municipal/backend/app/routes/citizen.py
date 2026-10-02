@@ -14,6 +14,7 @@ from app.schemas.common import ItemList, Language, Page
 from app.schemas.complaint import Category, CitizenComplaintOut, Status, TimelineEventOut
 from app.services import complaints as service
 from app.services.media import read_image, save_complaint_photo
+from app.services.realtime import hub
 
 router = APIRouter(prefix="/citizen", tags=["citizen"])
 DB = Annotated[Session, Depends(get_db)]
@@ -47,6 +48,12 @@ async def submit_complaint(
     complaint.photo_path = save_complaint_photo(complaint.id, "photo", data, extension)
     db.commit()
     db.refresh(complaint)
+    hub.publish(
+        "complaint.created",
+        service.to_staff_out(complaint).model_dump(mode="json"),
+        department=complaint.department,
+        ward_id=complaint.ward_id,
+    )
     return service.to_citizen_out(complaint)
 
 

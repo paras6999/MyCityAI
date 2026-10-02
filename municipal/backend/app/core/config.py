@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # Optional override; defaults to <repo>/shared/constants.json
     constants_path: str | None = None
 
+    # Push notifications via the Expo push service (works with Expo Go, no Firebase setup)
+    push_enabled: bool = True
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"

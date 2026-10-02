@@ -124,7 +124,7 @@ MyCityAI/
 | Backends | Python 3.11+, FastAPI, Uvicorn, Pydantic v2, SQLAlchemy 2, Alembic, PyJWT, bcrypt |
 | Database | PostgreSQL 16 (municipal and police are **separate databases**) |
 | AI / ML | Ultralytics YOLOv8, Sentence-Transformers (all-MiniLM-L6-v2), scikit-learn, PyTorch (LSTM), LangGraph, LLM API (Gemini / Llama / GPT) |
-| Real-time | WebSockets (FastAPI), Firebase Cloud Messaging |
+| Real-time | WebSockets (FastAPI), Expo push service (notifications to the citizen app) |
 | Video (police) | MediaMTX (RTSP → WebRTC), OpenCV |
 | DevOps | Git + GitHub, Docker / docker-compose, Postman, Google Colab (training) |
 
@@ -192,7 +192,7 @@ Rules: no imports across systems; apps talk to backends only via HTTP; each part
 
 | Part | Key variables |
 |---|---|
-| municipal/backend | `DATABASE_URL`, `JWT_SECRET`, `MEDIA_DIR`, `LLM_API_KEY`, `FCM_CREDENTIALS_FILE`, `BRIDGE_SECRET`, `DEV_OTP=123456` |
+| municipal/backend | `DATABASE_URL`, `JWT_SECRET`, `MEDIA_DIR`, `PUSH_ENABLED`, `LLM_API_KEY`, `BRIDGE_SECRET`, `DEV_OTP=123456` |
 | municipal/dashboard | `VITE_API_URL=http://localhost:8000/api/v1`, `VITE_WS_URL=ws://localhost:8000/ws/dashboard` |
 | citizen-app | `EXPO_PUBLIC_API_URL=http://<laptop-ip>:8000/api/v1`, `EXPO_PUBLIC_USE_MOCKS=true` |
 | police/backend | `DATABASE_URL`, `JWT_SECRET`, `MUNICIPAL_BRIDGE_URL`, `BRIDGE_SECRET`, `EVIDENCE_KEY`, `EVIDENCE_RETENTION_DAYS=30` |

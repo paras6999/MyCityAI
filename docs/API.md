@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.2 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.3 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -310,7 +310,8 @@ A new citizen has `name: null` and `ward_id: null` — the app should ask for na
 | `POST` | `/auth/refresh` | `{ "refresh_token": "..." }` → new tokens |
 | `GET` | `/auth/me` | → `User` |
 | `PATCH` | `/auth/me` | `{ "name"?, "language"?, "ward_id"? }` → `User` (`ward_id` only for citizens; staff → `403`) |
-| `POST` | `/auth/device-token` | `{ "fcm_token": "...", "platform": "android" }` → `204` (Citizen App, for push) |
+| `POST` | `/auth/device-token` | `{ "token": "ExponentPushToken[...]", "platform": "android" }` → `204` (Citizen App, for push — see §10.2) |
+| `DELETE` | `/auth/device-token` | same body → `204` (call on logout) |
 
 JWT payload:
 ```json
@@ -581,7 +582,9 @@ Backend file: `routes/insights.py` · Roles: `mayor`, `admin` (read), `ward_rep`
 ## 10. Real-time: WebSocket & push
 
 ### 10.1 Dashboard WebSocket
-**`WS /ws/dashboard?token=<access_token>`** — server pushes events the user is allowed to see:
+**`WS /ws/dashboard?token=<access_token>`** (no `/api/v1` prefix, e.g. `ws://localhost:8000/ws/dashboard?token=...`) — server pushes events the user is allowed to see (same scope as §6.1). `data` is the staff `Complaint` (§3.4).
+
+Close codes: `4401` = token missing/invalid/expired → refresh the token and reconnect · `4403` = role not allowed (citizens) → don't retry.
 ```json
 { "event": "complaint.created", "data": { "...Complaint..." }, "at": "2026-10-02T09:12:03+05:30" }
 ```
@@ -589,16 +592,24 @@ Backend file: `routes/insights.py` · Roles: `mayor`, `admin` (read), `ward_rep`
 |---|---|
 | `complaint.created` | New complaint in my scope |
 | `complaint.updated` | Status / assignment / priority changed |
-| `complaint.escalated` | Escalated to my level |
-| `complaint.feedback` | Citizen confirmed or reopened |
-| `announcement.published` | New announcement |
-| `suggestion.created` | New AI suggestion |
-| `insight.updated` | New bridge statistics arrived |
+| `complaint.escalated` | Escalated to my level *(from Phase 7)* |
+| `complaint.feedback` | Citizen confirmed or reopened *(from Phase 5)* |
+| `announcement.published` | New announcement *(from Phase 6)* |
+| `suggestion.created` | New AI suggestion *(from Phase 6)* |
+| `insight.updated` | New bridge statistics arrived *(from Phase 9)* |
+
+`complaint.updated` is also sent for comments and re-routing (when a complaint moves department, the old department's dashboards get it too so they can drop it from their queue).
 
 Client should reconnect with backoff (1 s, 2 s, 5 s, 10 s…) and re-fetch the queue after reconnecting.
 
-### 10.2 Citizen push notifications (Firebase Cloud Messaging)
-The app registers with `POST /auth/device-token`. Push `data` payload:
+### 10.2 Citizen push notifications (Expo push service)
+The Citizen App is built with Expo, so the backend sends notifications through the **Expo push service** — it works in Expo Go during development and needs no Firebase setup.
+
+App side: request permission and get the token with `Notifications.getExpoPushTokenAsync()` (expo-notifications), then `POST /auth/device-token` with `{ "token": "ExponentPushToken[...]", "platform": "android" }`. Only Expo push tokens are accepted (`400` otherwise). Call `DELETE /auth/device-token` on logout.
+
+Sent today for these status changes: `assigned`, `in_progress`, `rejected` (body includes the reason). The message is in the citizen's `language`. More types arrive with later phases.
+
+Push `data` payload:
 ```json
 { "type": "complaint_status", "complaint_id": "4187", "status": "in_progress", "title": "Complaint KMC-2026-04187", "body": "Repair work has started" }
 ```
@@ -608,7 +619,7 @@ The app registers with `POST /auth/device-token`. Push `data` payload:
 | `announcement` | Announcement details (`announcement_id`) |
 | `feedback_request` | Complaint details with Rate/Reopen visible |
 
-FCM `data` values are always strings.
+`data` values are always strings.
 
 ---
 
@@ -681,6 +692,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.3 | 2026-10-02 | Push via Expo push tokens (not raw FCM); `DELETE /auth/device-token`; WebSocket close codes and implemented events | Paras · *Friend: pending* |
 | 0.1.2 | 2026-10-02 | `photo_url` nullable for non-photo sources; documented complaint submit errors, PATCH rules and roles; citizen timeline excludes internal comments | Paras · *Friend: pending* |
 
 > To change this contract: open a PR that edits this file + adds a row here. Prefer **adding** optional fields over renaming/removing (see [Rules.md](Rules.md#3-api-contract-rules)).

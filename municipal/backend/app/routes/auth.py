@@ -1,13 +1,15 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.errors import APIError
 from app.core.security import CurrentUser, decode_token, load_active_user
-from app.models import Ward
+from app.models import DeviceToken, Ward
 from app.schemas.auth import (
+    DeviceTokenIn,
     OtpRequest,
     OtpRequestResponse,
     OtpTokenResponse,
@@ -66,3 +68,27 @@ def update_me(body: UserUpdate, user: CurrentUser, db: DB):
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.post("/device-token", status_code=204)
+def register_device(body: DeviceTokenIn, user: CurrentUser, db: DB):
+    """Register the phone for push notifications. Re-registering moves the token to this user."""
+    device = db.scalar(select(DeviceToken).where(DeviceToken.token == body.token))
+    if device is None:
+        db.add(DeviceToken(user_id=user.id, token=body.token, platform=body.platform))
+    else:
+        device.user_id, device.platform = user.id, body.platform
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/device-token", status_code=204)
+def unregister_device(body: DeviceTokenIn, user: CurrentUser, db: DB):
+    """Call on logout so the phone stops receiving this user's notifications."""
+    device = db.scalar(
+        select(DeviceToken).where(DeviceToken.token == body.token, DeviceToken.user_id == user.id)
+    )
+    if device is not None:
+        db.delete(device)
+        db.commit()
+    return Response(status_code=204)
