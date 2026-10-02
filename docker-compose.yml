@@ -1,0 +1,22 @@
+# Local development services. Start with:  docker compose up -d db
+# More services (backends, dashboards, police) are added in later phases.
+services:
+  db:
+    image: postgres:16
+    container_name: mycityai-db
+    environment:
+      POSTGRES_USER: mycity
+      POSTGRES_PASSWORD: mycity
+      POSTGRES_DB: mycity_municipal
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mycity -d mycity_municipal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
