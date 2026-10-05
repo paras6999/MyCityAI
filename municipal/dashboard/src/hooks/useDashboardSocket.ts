@@ -23,7 +23,11 @@ const CLOSE_FORBIDDEN = 4403
 const DETAIL_BASE: Partial<Record<StaffRole, string>> = {
   officer: '/officer/complaints',
   ward_rep: '/ward/complaints',
+  mayor: '/mayor/complaints',
 }
+
+// Escalation level that lands in each role's inbox (API.md §2.6).
+const INBOX_LEVEL: Partial<Record<StaffRole, number>> = { ward_rep: 1, mayor: 2 }
 
 interface DashboardEvent {
   event: string
@@ -55,13 +59,24 @@ export function useDashboardSocket(role: StaffRole): SocketStatus {
       queryClient.invalidateQueries({ queryKey: ['complaints'] })
       queryClient.invalidateQueries({ queryKey: ['complaint', complaint.id] })
       queryClient.invalidateQueries({ queryKey: ['timeline', complaint.id] })
+      queryClient.invalidateQueries({ queryKey: ['summary'] })
+
+      const base = DETAIL_BASE[role]
+      const href = base ? `${base}/${complaint.id}` : undefined
+      const category = t(`category.${complaint.category}`)
+      if (message.event === 'complaint.escalated' && complaint.escalation_level === INBOX_LEVEL[role]) {
+        toast.show({ title: t('live.escalated', { category }), body: complaint.code, href })
+      } else if (message.event === 'complaint.escalated' && role === 'officer') {
+        toast.show({ title: t('live.escalatedAway', { category }), body: complaint.code, href })
+      } else if (message.event === 'complaint.reminder' && role === 'officer') {
+        toast.show({ title: t('live.reminder', { category }), body: complaint.code, href })
+      }
 
       if (message.event === 'complaint.created') {
-        const base = DETAIL_BASE[role]
         toast.show({
-          title: t('live.newComplaint', { category: t(`category.${complaint.category}`) }),
+          title: t('live.newComplaint', { category }),
           body: complaint.description ?? complaint.code,
-          href: base ? `${base}/${complaint.id}` : undefined,
+          href,
         })
       }
     }

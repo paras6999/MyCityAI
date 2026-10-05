@@ -1,26 +1,54 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, LoaderCircle, Play, UserPlus, XCircle } from 'lucide-react'
+import { ArrowUpCircle, BellRing, Camera, LoaderCircle, Play, UserPlus, XCircle } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { ApiError } from '../api/client'
-import { addComment, listOfficers, updateComplaint, uploadProof } from '../api/complaints'
-import type { Complaint, ComplaintUpdate } from '../api/types'
+import {
+  addComment,
+  escalateComplaint,
+  listOfficers,
+  remindDepartment,
+  updateComplaint,
+  uploadProof,
+} from '../api/complaints'
+import type { Complaint, ComplaintUpdate, Role, Status } from '../api/types'
 import { STATUS_TRANSITIONS } from '../lib/constants'
 import { currentPosition } from '../lib/geolocation'
 import { useToast } from './toast/toastContext'
 
-/** Officer actions on one complaint. Ward reps (`canEdit=false`) can only comment. */
-export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint; canEdit: boolean }) {
+const STOPPED: Status[] = ['resolved', 'closed', 'rejected', 'merged']
+// The escalation level each role works at; they may push a complaint one step above it.
+const ROLE_LEVEL: Partial<Record<Role, number>> = { officer: 0, ward_rep: 1 }
+
+/**
+ * Actions on one complaint. Officers / mayor (`canEdit`) change it; ward reps comment,
+ * escalate and remind; officers and ward reps can escalate one level up (API.md §6.6).
+ */
+export function ComplaintActions({
+  complaint,
+  canEdit,
+  role,
+}: {
+  complaint: Complaint
+  canEdit: boolean
+  role?: Role
+}) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const toast = useToast()
   const [assignee, setAssignee] = useState<string>(String(complaint.assigned_to?.id ?? ''))
   const [rejecting, setRejecting] = useState(false)
+  const [escalating, setEscalating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const next = STATUS_TRANSITIONS[complaint.status] ?? []
   const canAssign = canEdit && ['new', 'assigned', 'reopened'].includes(complaint.status)
+  const isOpen = !STOPPED.includes(complaint.status)
+  const myLevel = role ? ROLE_LEVEL[role] : undefined
+  const canEscalate =
+    isOpen && myLevel !== undefined && complaint.escalation_level <= myLevel && complaint.escalation_level < 2
+  const canRemind = isOpen && (role === 'ward_rep' || role === 'mayor' || role === 'admin')
 
   const officers = useQuery({
     queryKey: ['officers', complaint.department],
@@ -56,6 +84,30 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
   const comment = useMutation({
     mutationFn: (note: string) => addComment(complaint.id, note),
     onSuccess: refresh,
+    onError,
+  })
+
+  const escalate = useMutation({
+    mutationFn: (reason: string) => escalateComplaint(complaint.id, reason),
+    onSuccess: () => {
+      setError(null)
+      setEscalating(false)
+      toast.show({ title: t('escalation.done'), body: complaint.code })
+      refresh()
+    },
+    onError,
+  })
+
+  const remind = useMutation({
+    mutationFn: () => remindDepartment(complaint.id, ''),
+    onSuccess: () => {
+      setError(null)
+      toast.show({
+        title: t('escalation.reminded'),
+        body: t(`departments.${complaint.department}`),
+      })
+      refresh()
+    },
     onError,
   })
 
@@ -110,6 +162,12 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
     if (note) update.mutate({ status: 'rejected', note })
   }
 
+  function submitEscalate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const reason = String(new FormData(event.currentTarget).get('reason')).trim()
+    if (reason) escalate.mutate(reason)
+  }
+
   function submitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = event.currentTarget
@@ -117,7 +175,8 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
     if (note) comment.mutate(note, { onSuccess: () => form.reset() })
   }
 
-  const busy = update.isPending || comment.isPending || proof.isPending
+  const busy =
+    update.isPending || comment.isPending || proof.isPending || escalate.isPending || remind.isPending
   const button =
     'flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold disabled:opacity-50'
 
@@ -250,6 +309,62 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
             <button
               type="button"
               onClick={() => setRejecting(false)}
+              className={`${button} bg-surface text-text`}
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {(canEscalate || canRemind) && !escalating && (
+        <div className="flex flex-wrap gap-2">
+          {canEscalate && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setEscalating(true)}
+              className={`${button} border border-accent-border text-accent hover:bg-accent-light`}
+            >
+              <ArrowUpCircle size={15} aria-hidden />
+              {t(complaint.escalation_level === 0 ? 'escalation.toWardRep' : 'escalation.toMayor')}
+            </button>
+          )}
+          {canRemind && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => remind.mutate()}
+              className={`${button} bg-warning-bg text-warning hover:opacity-90`}
+            >
+              <BellRing size={15} aria-hidden />
+              {t('escalation.remind')}
+            </button>
+          )}
+        </div>
+      )}
+
+      {escalating && (
+        <form onSubmit={submitEscalate} className="space-y-2 rounded-lg bg-accent-light/60 p-3">
+          <label htmlFor="escalate-reason" className="text-xs font-medium text-accent">
+            {t('escalation.reason')}
+          </label>
+          <textarea
+            id="escalate-reason"
+            name="reason"
+            required
+            maxLength={500}
+            rows={2}
+            placeholder={t('escalation.reasonPlaceholder')}
+            className="w-full rounded-lg border border-border bg-surface px-2.5 py-2 text-sm"
+          />
+          <div className="flex gap-2">
+            <button type="submit" disabled={busy} className={`${button} bg-accent text-white`}>
+              {t('escalation.confirm')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEscalating(false)}
               className={`${button} bg-surface text-text`}
             >
               {t('common.cancel')}
