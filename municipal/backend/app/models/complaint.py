@@ -35,6 +35,8 @@ class Complaint(Base):
 
     # Relative to MEDIA_DIR, e.g. "complaints/4187/photo.jpg". Null for non-photo sources.
     photo_path: Mapped[str | None] = mapped_column(String(255))
+    # Live-photo check of the complaint photo (live, source, captured_at, distance_m, problems)
+    photo_meta: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     status: Mapped[str] = mapped_column(String(20), default="new")
     priority_score: Mapped[int] = mapped_column(Integer, default=50)
@@ -49,6 +51,14 @@ class Complaint(Base):
 
     assigned_to_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     reporter_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+
+    # Latest resolution proof: after_photo_path, note, ai_verified (True/False/None = not checked),
+    # ai_confidence, reason, method, uploaded_at
+    proof: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # Citizen's answer after resolution: action (confirm/reopen/auto_closed), rating, comment,
+    # created_at
+    feedback: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     sla_hours: Mapped[int] = mapped_column(Integer)
     sla_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

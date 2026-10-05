@@ -193,14 +193,24 @@
     "assign": "Assign",
     "startWork": "Start work",
     "uploadProof": "Upload proof",
-    "proofLater": "Resolution proof upload arrives in Phase 5",
     "reject": "Reject",
     "rejectReason": "Reason for rejecting (shown to the citizen)",
     "confirmReject": "Reject complaint",
     "comment": "Comment",
     "commentPlaceholder": "Internal note, e.g. material ordered",
     "addComment": "Add comment",
-    "failed": "Action failed. Please try again."
+    "failed": "Action failed. Please try again.",
+    "proofTitle": "Resolution proof",
+    "proofPhoto": "Take the after-photo at the complaint location",
+    "proofNote": "What was done (shown to the citizen)",
+    "proofSubmit": "Upload and check",
+    "proofChecking": "Checking photo…",
+    "proofVerified": "AI confirmed the repair. Complaint resolved.",
+    "proofNotChecked": "Resolved. AI could not check this repair, so the citizen will confirm.",
+    "proofRejected": "Not resolved: {{reason}}. Upload a clearer photo of the repaired spot.",
+    "proofLocating": "Getting your location…",
+    "proofNoLocation": "Could not read your location. In production the photo will be refused; allow location access and try again at the spot.",
+    "proofNotLive": "Photo refused: take it with the camera at the complaint location."
   },
   "timeline": {
     "created": "Complaint submitted",
@@ -240,5 +250,39 @@
     "yoloHint": "Detected in the photo by the local YOLO model (free, offline)",
     "showBoxes_one": "Show detected object",
     "showBoxes_other": "Show {{count}} detected objects"
+  },
+  "proof": {
+    "title": "Before / after",
+    "before": "Reported",
+    "after": "After repair",
+    "verified": "AI verified",
+    "notFixed": "AI: not fixed",
+    "notChecked": "Not checked by AI",
+    "method": {
+      "identical": "same photo",
+      "yolo": "our YOLO model",
+      "gemini": "Gemini",
+      "none": "no AI"
+    }
+  },
+  "feedback": {
+    "title": "Citizen feedback",
+    "confirm": "Citizen confirmed the fix",
+    "reopen": "Citizen reopened the complaint",
+    "auto_closed": "Closed automatically (no answer within 72 h)",
+    "rating": "{{rating}} / 5",
+    "waiting": "Waiting for the citizen to confirm or reopen (auto-closes after 72 h)."
+  },
+  "photoCheck": {
+    "live": "Taken on the spot",
+    "liveDetail": "{{source}} · {{distance}}",
+    "notLive": "Not verified as taken on the spot",
+    "source": {
+      "exif": "GPS in photo",
+      "app": "phone GPS",
+      "none": "no location"
+    },
+    "distance": "{{meters}} m from complaint",
+    "atReported": "at reported location"
   }
 }

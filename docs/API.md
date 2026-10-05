@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.5 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.7 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -59,6 +59,7 @@ List endpoints accept `?page=1&page_size=20` (max 100) and return:
 | 403 | `FORBIDDEN` | Logged in, but role not allowed |
 | 404 | `*_NOT_FOUND` | Resource does not exist (or not visible to this user) |
 | 409 | `INVALID_STATUS_TRANSITION` | e.g. closing an unresolved complaint |
+| 400 | `PHOTO_NOT_LIVE` | Photo not taken with the camera on the spot (only when `REQUIRE_LIVE_PHOTOS=true`); `details` lists each problem |
 | 413 | `FILE_TOO_LARGE` | Upload over limit (photos: 8 MB) |
 | 429 | `RATE_LIMITED` | Too many requests (e.g. OTP) |
 | 500 | `INTERNAL_ERROR` | Server bug |
@@ -104,7 +105,7 @@ The same lists live in machine-readable form in [`shared/constants.json`](../sha
 ```
 new ──► assigned ──► in_progress ──► resolved ──► closed
  │          │             │              │
- │          └─────────────┴──► rejected  └──► reopened ──► assigned
+ │          └─────────────┴──► rejected  └──► reopened ──► assigned / in_progress
  └──► merged   (duplicate merged into another complaint)
 ```
 | Status | Meaning | Who sets it |
@@ -113,7 +114,7 @@ new ──► assigned ──► in_progress ──► resolved ──► closed
 | `merged` | Duplicate; see `merged_into_id` | System |
 | `assigned` | Officer / field staff assigned | Officer |
 | `in_progress` | Work started | Officer |
-| `resolved` | Fixed; after-photo uploaded and AI-verified | Officer (needs proof) |
+| `resolved` | Fixed; after-photo uploaded and passed the AI check (or AI could not check) | Officer (needs proof) |
 | `closed` | Citizen confirmed, or no response within 72 h of `resolved` | Citizen / System |
 | `reopened` | Citizen says not fixed | Citizen |
 | `rejected` | Invalid / not municipal responsibility (reason required) | Officer |
@@ -181,6 +182,10 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
   "department": "roads",
   "location": { "lat": 16.6968, "lng": 74.2433, "address": "Near Rajarampuri bus stop", "ward_id": 12 },
   "photo_url": "/media/complaints/4187/photo.jpg",
+  "photo_check": {
+    "live": true, "source": "exif", "captured_at": "2026-09-28T09:11:40+05:30",
+    "accuracy_m": null, "distance_m": null, "problems": []
+  },
   "status": "in_progress",
   "priority_score": 82,
   "priority_level": "high",
@@ -209,6 +214,7 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
 
 - `photo_url` is a path on the backend (prefix it with the server origin, e.g. `http://<host>:8000/media/...`). It is `null` for complaints without a photo (`police_bridge`, `sensor`, `staff` sources).
 - `ai.model`: `"yolo"` when our local YOLO model detected objects in the photo, `"gemini"` when Google Gemini analysed it, `"keywords"` for the text-only fallback. Category priority: citizen's choice > YOLO > Gemini > keywords. `ai.summary` comes from Gemini only (else `null`).
+- `photo_check`: result of the live-photo rules (§5.6). `source`: `exif` (GPS stored in the photo), `app` (GPS reported by the app) or `none`. `problems` is empty when `live` is true.
 - `ai.detections`: objects found by YOLO — `label` (a category), `confidence`, `box` = `[x1, y1, x2, y2]` as fractions (0–1) of the photo's width/height, so apps can draw boxes at any size.
 - `priority_score` = AI severity (0–100) + boosts: +5 per merged duplicate (max +20), +15 near a school/hospital/bus stop etc., up to +15 as the SLA deadline approaches, up to +10 forecast risk (Phase 8). Capped at 100.
 
@@ -233,19 +239,24 @@ Same as `Complaint` **minus** `reporter`, `escalation_level`, `assigned_to.id` a
 ### 3.7 `Proof`
 ```json
 {
-  "after_photo_url": "/media/complaints/4187/after.jpg",
+  "after_photo_url": "/media/complaints/4187/after-1759200000.jpg",
   "note": "Pothole filled and levelled",
   "ai_verified": true,
   "ai_confidence": 0.91,
+  "reason": "Pothole seen before is no longer visible",
+  "method": "yolo",
   "uploaded_at": "2026-09-30T08:00:00+05:30"
 }
 ```
+`ai_verified`: `true` = AI confirmed the fix · `false` = AI says not fixed (latest failed attempt) · `null` = AI could not check (the citizen's confirmation is the check).
+`method`: `identical` (same photo as the complaint) · `yolo` (our model: problem seen before, gone after) · `gemini` (before/after comparison) · `none`.
+Complaints also carry `resolved_at` (time of the last resolution, `null` otherwise).
 
 ### 3.8 `Feedback`
 ```json
 { "rating": 4, "comment": "Fixed quickly", "action": "confirm", "created_at": "2026-09-30T10:00:00+05:30" }
 ```
-`action`: `confirm` (→ `closed`) or `reopen` (→ `reopened`, `comment` required).
+`action`: `confirm` (→ `closed`), `reopen` (→ `reopened`, `comment` required) or `auto_closed` (system closed it 72 h after resolution without an answer). `rating` 1–5 or `null`.
 
 ### 3.9 `Announcement`
 ```json
@@ -368,9 +379,31 @@ If an active announcement explains the issue (e.g. planned water shutdown), `act
 | `address` | string | no |
 | `category` | `category` | no — AI decides if missing |
 | `language` | `language` | no (default user's language) |
+| `captured_at` | ISO 8601 datetime | **yes in production** — when the camera took the photo |
+| `location_accuracy_m` | number | **yes in production** — GPS accuracy from the phone |
+| `capture_source` | `camera` \| `gallery` | **yes in production** — always `camera` (see §5.6) |
 
 → `201` `CitizenComplaint`. If it duplicates an open complaint (same category, within 50 m, similar text when available): `status = "merged"`, `merged_into_id` set. The citizen can open the original with `GET /citizen/complaints/{merged_into_id}` and receives its push notifications.
 A missing `category` is chosen by the AI (or the keyword fallback); a category the citizen picked is kept. Non-JPG/PNG photo → `400 VALIDATION_ERROR`; over 8 MB → `413 FILE_TOO_LARGE`.
+
+### 5.6 Live photo rules (deployment)
+In production (`REQUIRE_LIVE_PHOTOS=true`) every complaint photo and every repair proof must be **taken with the camera on the spot, just now**. Otherwise → `400 PHOTO_NOT_LIVE` with the reasons in `details`. In development the same checks run and are stored in `photo_check`, but the photo is accepted (so testing with gallery photos works).
+
+A photo passes when all of these hold:
+1. `capture_source` is not `gallery`.
+2. It was taken in the last **15 min** (EXIF time if the photo has it, else `captured_at`); not in the future (2 min clock tolerance).
+3. It has a location: **EXIF GPS** in the photo, else `lat`/`lng` from the app with `location_accuracy_m` ≤ **50 m**.
+4. If the photo has EXIF GPS, it is within **100 m** of the reported `lat`/`lng`.
+5. Repair proof only: the photo is within **100 m of the complaint location**.
+
+**Citizen App (Expo) — how to comply:**
+- Use **`ImagePicker.launchCameraAsync({ exif: true, quality: 0.8 })`** only. Do **not** offer `launchImageLibraryAsync` (no gallery button).
+- Right after the shot, get the position with **`Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })`** and send `lat`, `lng`, `location_accuracy_m = coords.accuracy`, `captured_at = new Date().toISOString()`, `capture_source = "camera"`.
+- Call `POST /citizen/complaints/analyze` with the same fields first: its `photo_check` tells the user what to fix (e.g. "wait for a better GPS fix") before submitting.
+
+Privacy: the backend reads the EXIF and then stores/serves the photo **without** EXIF (no exact GPS, phone model or serial in public files).
+
+Limitation: a modified app could fake these fields; tamper-proofing needs device attestation (e.g. Google Play Integrity) — out of scope for the prototype.
 
 ### 5.3 My complaints
 | Method | Path | Response |
@@ -384,7 +417,7 @@ A missing `category` is chosen by the AI (or the keyword fallback); a category t
 ```json
 { "action": "reopen", "rating": 2, "comment": "Pothole is back after rain" }
 ```
-→ `200` `CitizenComplaint`
+→ `200` `CitizenComplaint`. Errors: `409` if not `resolved`, `400` if `reopen` without `comment`, `403` if the user is only following a merged complaint (only the original reporter answers). Without an answer the complaint closes automatically 72 h after resolution.
 
 ### 5.5 Home screen summary
 **`GET /citizen/home`**
@@ -439,12 +472,15 @@ Rules:
 → `Complaint`
 
 ### 6.5 Upload resolution proof
-**`POST /staff/complaints/{id}/proof`** — `multipart/form-data`: `after_photo` (file), `note`
+**`POST /staff/complaints/{id}/proof`** — `multipart/form-data`: `after_photo` (file), `note`, and the live-photo fields `lat`, `lng`, `captured_at`, `location_accuracy_m`, `capture_source` (§5.6 — the photo must be taken **within 100 m of the complaint**). A geotag at the complaint location also counts as "same place" for the AI check.
 
-AI compares before/after photos. If `ai_verified = true` → status becomes `resolved`. If `false` → stays `in_progress` and response says why.
+Only while the complaint is `in_progress` (else `409`). The AI checks the after-photo (see §3.7 `method`):
+- `ai_verified: true` or `null` (could not check) → status becomes `resolved`, the reporter (and followers) get a `feedback_request` push.
+- `ai_verified: false` → stays `in_progress`; the reason is added to the timeline. Upload a better photo to try again.
 ```json
-{ "complaint": { "...Complaint..." }, "verification": { "ai_verified": false, "ai_confidence": 0.41, "reason": "Pothole still visible" } }
+{ "complaint": { "...Complaint..." }, "verification": { "ai_verified": false, "ai_confidence": 0.88, "reason": "Pothole still visible (88%)", "method": "yolo", "photo_check": { "live": true, "source": "app", "distance_m": 12.4, "problems": [] } } }
 ```
+`proof.photo_check` on the complaint keeps the same result.
 
 ### 6.6 Comment / escalate
 | Method | Path | Body |
@@ -603,7 +639,7 @@ Close codes: `4401` = token missing/invalid/expired → refresh the token and re
 | `complaint.created` | New complaint in my scope |
 | `complaint.updated` | Status / assignment / priority changed |
 | `complaint.escalated` | Escalated to my level *(from Phase 7)* |
-| `complaint.feedback` | Citizen confirmed or reopened *(from Phase 5)* |
+| `complaint.feedback` | Citizen confirmed or reopened |
 | `announcement.published` | New announcement *(from Phase 6)* |
 | `suggestion.created` | New AI suggestion *(from Phase 6)* |
 | `insight.updated` | New bridge statistics arrived *(from Phase 9)* |
@@ -617,7 +653,7 @@ The Citizen App is built with Expo, so the backend sends notifications through t
 
 App side: request permission and get the token with `Notifications.getExpoPushTokenAsync()` (expo-notifications), then `POST /auth/device-token` with `{ "token": "ExponentPushToken[...]", "platform": "android" }`. Only Expo push tokens are accepted (`400` otherwise). Call `DELETE /auth/device-token` on logout.
 
-Sent today for these status changes: `assigned`, `in_progress`, `rejected` (body includes the reason). The message is in the citizen's `language`. More types arrive with later phases.
+Sent today for these status changes: `assigned`, `in_progress`, `rejected` (body includes the reason) and `resolved` (as `type: "feedback_request"` — open the complaint with Confirm / Reopen buttons). The message is in the citizen's `language`. More types arrive with later phases.
 
 Push `data` payload:
 ```json
@@ -702,6 +738,8 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.7 | 2026-10-05 | **Live photo rules** (§5.6): camera-only, geotagged, ≤ 15 min old; new form fields on complaint submit/analyze/proof, `photo_check` in responses, `PHOTO_NOT_LIVE` error; EXIF stripped before storing | Paras · *Friend: pending* |
+| 0.1.6 | 2026-10-02 | Resolution proof with AI check (`proof.reason/method`, `ai_verified` may be `null`), `resolved_at`, feedback rules, auto-close 72 h, `reopened → in_progress` allowed | Paras · *Friend: pending* |
 | 0.1.5 | 2026-10-02 | Local YOLO detection: `ai.model` adds `"yolo"`, new `ai.detections` (boxes) in complaints and the analyze response | Paras · *Friend: pending* |
 | 0.1.4 | 2026-10-02 | AI triage live: `ai.severity/sensitive_location/model`, priority formula, analyze response adds `summary` + `is_civic_issue`, duplicate merging + citizens can view the original | Paras · *Friend: pending* |
 | 0.1.3 | 2026-10-02 | Push via Expo push tokens (not raw FCM); `DELETE /auth/device-token`; WebSocket close codes and implemented events | Paras · *Friend: pending* |

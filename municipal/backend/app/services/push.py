@@ -25,6 +25,11 @@ STATUS_MESSAGES: dict[str, dict[str, str]] = {
         "mr": "तुमच्या तक्रारीवर ({code}) काम सुरू झाले आहे.",
         "hi": "आपकी शिकायत {code} पर काम शुरू हो गया है।",
     },
+    "resolved": {
+        "en": "Your complaint {code} has been resolved. Please confirm or reopen it in the app.",
+        "mr": "तुमची तक्रार {code} सोडवली गेली आहे. कृपया ॲपमध्ये खात्री करा किंवा पुन्हा उघडा.",
+        "hi": "आपकी शिकायत {code} हल कर दी गई है। कृपया ऐप में पुष्टि करें या फिर से खोलें।",
+    },
     "rejected": {
         "en": "Your complaint {code} was rejected: {note}",
         "mr": "तुमची तक्रार {code} नाकारली गेली: {note}",
@@ -77,7 +82,8 @@ def build_status_push(
         return None
     title = f"Complaint {complaint.code}"
     data = {
-        "type": "complaint_status",
+        # A resolved complaint asks the citizen to confirm or reopen (API.md §10.2).
+        "type": "feedback_request" if status == "resolved" else "complaint_status",
         "complaint_id": str(complaint.id),
         "status": status,
         "title": title,

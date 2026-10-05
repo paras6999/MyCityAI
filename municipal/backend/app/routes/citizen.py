@@ -1,6 +1,7 @@
 """Citizen endpoints (API.md §5). The citizen-app owner may also edit this file via PR."""
 
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy import select
@@ -18,10 +19,12 @@ from app.schemas.complaint import (
     Category,
     CitizenComplaintOut,
     DuplicateHint,
+    FeedbackIn,
     Status,
     TimelineEventOut,
 )
 from app.services import complaints as service
+from app.services import live_photo
 from app.services.media import mime_for, read_image, save_complaint_photo
 from app.services.realtime import hub
 
@@ -34,6 +37,12 @@ def _clean(text: str | None) -> str | None:
     return (text or "").strip() or None
 
 
+# How the app says the photo was taken (API.md §5.2 "Live photo rules")
+CapturedAt = Annotated[datetime | None, Form()]
+Accuracy = Annotated[float | None, Form(ge=0)]
+CaptureSource = Annotated[Literal["camera", "gallery"] | None, Form()]
+
+
 @router.post("/complaints/analyze", response_model=AnalyzeOut)
 def analyze_photo(
     db: DB,
@@ -42,9 +51,21 @@ def analyze_photo(
     lat: Annotated[float, Form(ge=-90, le=90)],
     lng: Annotated[float, Form(ge=-180, le=180)],
     description: Annotated[str | None, Form(max_length=limit("description_max_chars"))] = None,
+    captured_at: CapturedAt = None,
+    location_accuracy_m: Accuracy = None,
+    capture_source: CaptureSource = None,
 ):
-    """Preview before submitting: AI category, priority and nearby duplicates. Saves nothing."""
+    """Preview before submitting: AI category, priority, nearby duplicates and whether the photo
+    passes the live-photo rules. Saves nothing."""
     data, extension = read_image(photo)
+    check = live_photo.check_live_photo(
+        data,
+        lat=lat,
+        lng=lng,
+        captured_at=captured_at,
+        accuracy_m=location_accuracy_m,
+        capture_source=capture_source,
+    )
     triage = run_triage(
         db,
         image=data,
@@ -61,6 +82,7 @@ def analyze_photo(
         priority_level=priority_level(triage.priority),
         summary=triage.summary,
         is_civic_issue=triage.is_civic_issue,
+        photo_check=check.to_json(),
         detections=[d.to_json() for d in triage.detections],
         nearby_duplicates=[
             DuplicateHint(
@@ -86,8 +108,20 @@ def submit_complaint(
     address: Annotated[str | None, Form(max_length=255)] = None,
     category: Annotated[Category | None, Form()] = None,
     language: Annotated[Language | None, Form()] = None,
+    captured_at: CapturedAt = None,
+    location_accuracy_m: Accuracy = None,
+    capture_source: CaptureSource = None,
 ):
     data, extension = read_image(photo)
+    check = live_photo.check_live_photo(
+        data,
+        lat=lat,
+        lng=lng,
+        captured_at=captured_at,
+        accuracy_m=location_accuracy_m,
+        capture_source=capture_source,
+    )
+    live_photo.enforce(check)
     description = _clean(description)
     triage = run_triage(
         db,
@@ -111,7 +145,10 @@ def submit_complaint(
         ai=triage.ai_info,
         embedding=triage.embedding,
     )
-    complaint.photo_path = save_complaint_photo(complaint.id, "photo", data, extension)
+    complaint.photo_meta = check.to_json()
+    # Stored and served without EXIF (exact GPS, phone model): privacy.
+    stored = live_photo.strip_metadata(data, extension)
+    complaint.photo_path = save_complaint_photo(complaint.id, "photo", stored, extension)
 
     original = db.get(Complaint, triage.duplicate_id) if triage.duplicate_id else None
     if original is not None:
@@ -176,6 +213,22 @@ def my_complaint_timeline(complaint_id: int, db: DB, user: Citizen):
         .order_by(TimelineEvent.created_at, TimelineEvent.id)
     ).all()
     return ItemList(items=[TimelineEventOut.model_validate(e) for e in events])
+
+
+@router.post("/complaints/{complaint_id}/feedback", response_model=CitizenComplaintOut)
+def give_feedback(complaint_id: int, body: FeedbackIn, db: DB, user: Citizen):
+    """Confirm the fix (closes the complaint) or reopen it with a reason (API.md §5.4)."""
+    complaint = service.get_for_citizen(db, complaint_id, user)
+    service.apply_feedback(db, complaint, user, body.action, body.rating, body.comment)
+    db.commit()
+    db.refresh(complaint)
+    hub.publish(
+        "complaint.feedback",
+        service.to_staff_out(complaint).model_dump(mode="json"),
+        department=complaint.department,
+        ward_id=complaint.ward_id,
+    )
+    return service.to_citizen_out(complaint)
 
 
 @router.get("/home")

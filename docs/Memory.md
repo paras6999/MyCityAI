@@ -9,15 +9,15 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 4 — AI classification & priority** done on municipal side (Gemini); next: Phase 5 proof & feedback (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.5 (draft — friend still needs to approve 0.1.0–0.1.5) |
+| Current phase | **Phase 5 — Resolution proof & feedback** done on municipal side; next: Phase 6 announcements (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.7 (draft — friend still needs to approve 0.1.0–0.1.7) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. Phase 4b: local YOLO detection step (placeholder HF pothole model + COCO animals, registry `ml/vision/models.json`). 84 tests (+1 opt-in real-model test). |
-| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue, YOLO boxes drawn on the photo. |
+| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. Phase 4b: local YOLO detection step (placeholder HF pothole model + COCO animals, registry `ml/vision/models.json`). Phase 5: proof upload with AI check (identical / YOLO before-after + same-place OpenCV match / Gemini / not checked), citizen confirm-rate-reopen, auto-close 72 h via in-process scheduler. 98 tests (+1 opt-in). |
+| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue, YOLO boxes drawn on the photo. Phase 5: proof upload form (verdict toast), before/after card with AI verdict, citizen feedback (stars, reopen reason). |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -29,7 +29,7 @@
 3. Friend: Expo app skeleton with mock API (Phase 0)
 4. Friend: Phases 1–3 — OTP login, ward picker, Report screen, My Complaints + detail + timeline, push (`getExpoPushTokenAsync` → `POST /auth/device-token`)
 5. Paras: put a Gemini key in `municipal/backend/.env` (`GEMINI_API_KEY`) and try a real photo
-6. Paras: Phase 5 — after-photo proof + AI verification, citizen feedback (confirm / reopen), auto-close
+6. Paras: Phase 6 — announcements (CRUD, ward targeting, AI draft/translate, auto-reply to linked complaints)
 7. ML team: follow docs/ML.md — collect/label data, train `mycityai-yolov8s-v1` on Colab, then swap it into `ml/vision/models.json` (no code change)
 
 ## Team
@@ -50,6 +50,7 @@
 | 2026-10-02 | App name: **MyCityAI** | Team decision (repo name) |
 | 2026-10-02 | AI = **Google Gemini** (photo+text in one call, embeddings); keyword fallback when unavailable; YOLO later | No trained YOLO models yet; one API covers vision + text |
 | 2026-10-02 | **Own trained YOLO model is the main photo AI** (free, offline); Gemini optional (summary/translation); free HF pothole model as placeholder until ours is trained | No API cost, works offline, better for viva (own model + metrics) |
+| 2026-10-05 | **Production photos must be live**: camera only, geotagged, ≤ 15 min old; proofs within 100 m of the complaint (`REQUIRE_LIVE_PHOTOS=true`; off in development) | Prevents fake complaints and fake repair proofs |
 | 2026-10-02 | V-JEPA 2 (Meta, MIT) planned for police CCTV action recognition (fight/accident) in Phase 9 | YOLO sees objects, not actions |
 
 ## Open questions
@@ -58,6 +59,23 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-05 — Live photo rules (Phase 5b)
+- Branches `backend/phase5b-live-photos` and `dashboard/phase5b-live-photos`.
+- `app/services/live_photo.py`: reads EXIF GPS + capture time (Pillow), else app-reported GPS/accuracy/time; rules in API.md §5.6. Result stored as `photo_check`; EXIF stripped before saving.
+- `REQUIRE_LIVE_PHOTOS=false` in dev (record only) / `true` in production (`400 PHOTO_NOT_LIVE`).
+- Geotag at the complaint location now counts as "same place" for repair verification (scene matching only as fallback).
+- Dashboard proof upload: `capture="environment"` (phone camera), browser GPS + file time sent; badges show the check. Geolocation needs HTTPS in deployment.
+- Verified live in production mode: gallery/old photo → 400, photo GPS 2 km off → 400, live photo → 201; officer proof 2 km away → 400, at the spot (15 m) → accepted.
+- **Citizen app must**: camera only (`launchCameraAsync({exif:true})`), send `captured_at`, `location_accuracy_m`, `capture_source="camera"`.
+
+### 2026-10-02 — Municipal Phase 5 (proof & feedback)
+- Branches `backend/phase5-proof` and `dashboard/phase5-proof`.
+- Verification order: identical photo → YOLO (problem seen before gone after) → Gemini before/after → "not checked" (resolve; citizen's confirmation is the check). `proof.ai_verified` = true / false / null.
+- **Gap found in live testing:** YOLO "verified" a repair using an unrelated bus photo. Added `app/agents/scene.py` (ORB + RANSAC): same place ≈ 390 matches, different ≈ 0–7; threshold 25. Different place → downgraded to "not checked".
+- **Placeholder limitation:** pothole model marks mountains as pothole (49 %) → blocked a simulated genuine repair. Fix = train with sky/hill negatives (ML.md). Not worked around in code.
+- `shared/constants.json`: `reopened → in_progress` allowed (officer still assigned). Needs friend's approval.
+- Scheduler (`app/services/scheduler.py`) runs auto-close every 5 min in the API process; Phase 7 escalation will join it.
+
 ### 2026-10-02 — Phase 4b (local YOLO vision)
 - Branch `backend/phase4b-vision` (contains backend + dashboard + docs; built on `dashboard/phase4-ai`).
 - New LangGraph node `detect` before `analyze`. Models from `ml/vision/models.json` (labels → categories, SHA-256 checked, auto-download to `municipal/backend/models/`, preloaded at startup). Ultralytics/torch are optional (`requirements-ml.txt`, CPU wheels).

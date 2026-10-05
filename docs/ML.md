@@ -45,7 +45,9 @@ Not every complaint is visible in a photo. The pipeline combines three signals:
 
 **Collect our own photos in Kolhapur** (phone camera, different times of day, rain/dry). Even 50–100 local photos per class make a big difference. Always check and record each dataset's licence in [`ml/README.md`](../ml/README.md).
 
-**Targets:** at least **300–500 labelled images per class**, plus ~10 % **negative** images (normal clean roads with no labels) so the model learns *not* to fire on everything.
+**Targets:** at least **300–500 labelled images per class**, plus ~10–15 % **negative** images (no labels) so the model learns *not* to fire on everything: clean roads, **repaired/patched roads**, and photos with **sky, hills, buildings and shadows** in them.
+
+> Lesson from testing the placeholder: it marks **mountains/sky at the top of road photos as potholes** (74 % and 49 %). That false positive even blocked a genuine repair in the Phase 5 after-photo check. Negatives with hills and sky fix this.
 
 ## 3. Labelling
 
@@ -134,7 +136,7 @@ No backend code changes are needed: `labels` maps our class names to complaint c
 
 | Use | Model | Phase |
 |---|---|---|
-| Is it really fixed? (after-photo check) | Same YOLO model: the pothole should no longer be detected | Phase 5 |
+| Is it really fixed? (after-photo check) | Same YOLO model: the problem seen before must be gone, **and** OpenCV feature matching must show the same place (`app/agents/scene.py`) | Phase 5 ✅ |
 | Police CCTV objects (vehicles, people) | YOLOv8 (COCO) | Phase 9 |
 | Police CCTV actions (accident, fight, crowd) | **V-JEPA 2** (Meta, MIT licence) video model + small classifier trained on e.g. RWF-2000 | Phase 9 |
 

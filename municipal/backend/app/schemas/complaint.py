@@ -66,6 +66,47 @@ class ReporterRef(BaseModel):
     phone_masked: str | None
 
 
+class PhotoCheckOut(BaseModel):
+    """Was the photo taken on the spot, just now? (API.md §3.4 `photo_check`)"""
+
+    live: bool
+    source: Literal["exif", "app", "none"]
+    captured_at: AwareDatetime | None
+    accuracy_m: float | None
+    distance_m: float | None
+    problems: list[str]
+
+
+class ProofOut(BaseModel):
+    """API.md §3.7 — latest resolution proof."""
+
+    after_photo_url: str | None
+    note: str | None
+    ai_verified: bool | None  # None = AI could not check
+    ai_confidence: float | None
+    reason: str
+    method: Literal["identical", "yolo", "gemini", "none"]
+    photo_check: PhotoCheckOut | None = None
+    uploaded_at: AwareDatetime
+
+
+class FeedbackOut(BaseModel):
+    """API.md §3.8"""
+
+    action: Literal["confirm", "reopen", "auto_closed"]
+    rating: int | None
+    comment: str | None
+    created_at: AwareDatetime
+
+
+class FeedbackIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    action: Literal["confirm", "reopen"]
+    rating: int | None = Field(default=None, ge=1, le=5)
+    comment: str | None = Field(default=None, max_length=1000)
+
+
 class ComplaintOut(BaseModel):
     """Full complaint as seen by staff (API.md §3.4)."""
 
@@ -77,6 +118,7 @@ class ComplaintOut(BaseModel):
     department: Department
     location: Location
     photo_url: str | None
+    photo_check: PhotoCheckOut | None = None
     status: Status
     priority_score: int
     priority_level: PriorityLevel
@@ -87,8 +129,9 @@ class ComplaintOut(BaseModel):
     sla_hours: int
     sla_due_at: AwareDatetime
     escalation_level: int
-    proof: dict[str, Any] | None = None  # Phase 5
-    feedback: dict[str, Any] | None = None  # Phase 5
+    proof: ProofOut | None = None
+    feedback: FeedbackOut | None = None
+    resolved_at: AwareDatetime | None = None
     reporter: ReporterRef | None
     created_at: AwareDatetime
     updated_at: AwareDatetime
@@ -114,6 +157,7 @@ class CitizenComplaintOut(BaseModel):
     department: Department
     location: Location
     photo_url: str | None
+    photo_check: PhotoCheckOut | None = None
     status: Status
     priority_score: int
     priority_level: PriorityLevel
@@ -123,8 +167,9 @@ class CitizenComplaintOut(BaseModel):
     assigned_to: CitizenAssignee | None
     sla_hours: int
     sla_due_at: AwareDatetime
-    proof: dict[str, Any] | None = None
-    feedback: dict[str, Any] | None = None
+    proof: ProofOut | None = None
+    feedback: FeedbackOut | None = None
+    resolved_at: AwareDatetime | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
 
@@ -187,6 +232,22 @@ class AnalyzeOut(BaseModel):
     priority_level: PriorityLevel
     summary: str | None
     is_civic_issue: bool
+    photo_check: PhotoCheckOut
     detections: list[DetectionOut]
     nearby_duplicates: list[DuplicateHint]
     active_announcement: dict[str, Any] | None = None  # Phase 6
+
+
+class VerificationOut(BaseModel):
+    ai_verified: bool | None
+    ai_confidence: float | None
+    reason: str
+    method: Literal["identical", "yolo", "gemini", "none"]
+    photo_check: PhotoCheckOut
+
+
+class ProofResponse(BaseModel):
+    """POST /staff/complaints/{id}/proof (API.md §6.5)."""
+
+    complaint: ComplaintOut
+    verification: VerificationOut

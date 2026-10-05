@@ -98,6 +98,49 @@ def analyze_issue(image: bytes, mime_type: str, description: str | None) -> Issu
         return None
 
 
+class FixCheck(BaseModel):
+    """Gemini's verdict on a before/after pair."""
+
+    fixed: bool
+    confidence: float = Field(ge=0, le=1)
+    reason: str = Field(description="One short sentence explaining the verdict")
+
+
+FIX_PROMPT = """The first photo shows a reported civic problem (category: {category}).
+The second photo was uploaded by a municipal officer as proof that it is fixed.
+Decide if the second photo shows the SAME place with the problem repaired or removed.
+Answer fixed=false if the problem is still visible, if the place looks different/unrelated,
+or if the photo is unclear."""
+
+
+def check_fix(
+    before: bytes, before_mime: str, after: bytes, after_mime: str, category: str
+) -> FixCheck | None:
+    client = _client()
+    if client is None:
+        return None
+    try:
+        response = client.models.generate_content(
+            model=get_settings().gemini_model,
+            contents=[
+                types.Part.from_bytes(data=before, mime_type=before_mime),
+                types.Part.from_bytes(data=after, mime_type=after_mime),
+                FIX_PROMPT.format(category=category),
+            ],
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=FixCheck,
+                temperature=0.1,
+            ),
+        )
+        if isinstance(response.parsed, FixCheck):
+            return response.parsed
+        return FixCheck.model_validate_json(response.text or "")
+    except Exception:
+        logger.exception("Gemini fix check failed")
+        return None
+
+
 def embed_text(text: str) -> list[float] | None:
     client = _client()
     if client is None or not text.strip():

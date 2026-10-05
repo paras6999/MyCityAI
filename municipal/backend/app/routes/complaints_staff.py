@@ -1,12 +1,16 @@
 """Staff complaint endpoints (API.md §6.2–6.7)."""
 
-from typing import Annotated
+import time
+from datetime import datetime
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.agents.verification import verify_fix
 from app.core.db import get_db
+from app.core.errors import APIError
 from app.core.security import require_role
 from app.models import Complaint, TimelineEvent, User
 from app.schemas.common import Department, ItemList, Page
@@ -16,12 +20,15 @@ from app.schemas.complaint import (
     ComplaintOut,
     ComplaintUpdate,
     PriorityLevel,
+    ProofResponse,
     Status,
     TimelineEventOut,
+    VerificationOut,
 )
 from app.schemas.user import UserOut
 from app.services import complaints as service
-from app.services import push
+from app.services import live_photo, push
+from app.services.media import media_root, mime_for, read_image, save_complaint_photo
 from app.services.realtime import hub
 
 router = APIRouter(prefix="/staff", tags=["staff"])
@@ -128,6 +135,85 @@ def update_complaint(
         if notification:
             background.add_task(push.deliver, notification)
     return out
+
+
+@router.post("/complaints/{complaint_id}/proof", response_model=ProofResponse)
+def upload_proof(
+    complaint_id: int,
+    db: DB,
+    user: Editor,
+    background: BackgroundTasks,
+    after_photo: Annotated[UploadFile, File()],
+    note: Annotated[str | None, Form(max_length=1000)] = None,
+    lat: Annotated[float | None, Form(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Form(ge=-180, le=180)] = None,
+    captured_at: Annotated[datetime | None, Form()] = None,
+    location_accuracy_m: Annotated[float | None, Form(ge=0)] = None,
+    capture_source: Annotated[Literal["camera", "gallery"] | None, Form()] = None,
+):
+    """After-photo of the repair, taken at the complaint location; AI checks it before the
+    complaint becomes resolved."""
+    complaint = service.get_for_staff(db, complaint_id, user)
+    if complaint.status != "in_progress":
+        raise APIError(
+            409, "INVALID_STATUS_TRANSITION", "Start work on the complaint before uploading proof"
+        )
+    data, extension = read_image(after_photo)
+    check = live_photo.check_live_photo(
+        data,
+        lat=lat,
+        lng=lng,
+        captured_at=captured_at,
+        accuracy_m=location_accuracy_m,
+        capture_source=capture_source,
+        expected_lat=complaint.lat,
+        expected_lng=complaint.lng,
+    )
+    live_photo.enforce(check)
+    before = media_root() / complaint.photo_path if complaint.photo_path else None
+    before_bytes = before.read_bytes() if before and before.exists() else None
+    before_mime = mime_for(before.suffix.lstrip(".")) if before_bytes else None
+    verification = verify_fix(
+        complaint.category,
+        before_bytes,
+        before_mime,
+        data,
+        mime_for(extension),
+        at_location=check.live,
+    )
+
+    # Every attempt keeps its own file, so a rejected proof stays visible in history.
+    # Stored and served without EXIF (exact GPS, phone model): privacy.
+    stored = live_photo.strip_metadata(data, extension)
+    path = save_complaint_photo(complaint.id, f"after-{int(time.time())}", stored, extension)
+    previous_status = complaint.status
+    service.record_proof(
+        db,
+        complaint,
+        user,
+        photo_path=path,
+        note=(note or "").strip() or None,
+        verification=verification,
+    )
+    complaint.proof = {**complaint.proof, "photo_check": check.to_json()}
+    db.commit()
+    db.refresh(complaint)
+    out = service.to_staff_out(complaint)
+    publish_update(complaint, out)
+    if complaint.status != previous_status:
+        notification = push.build_status_push(db, complaint, complaint.status, None)
+        if notification:
+            background.add_task(push.deliver, notification)
+    return ProofResponse(
+        complaint=out,
+        verification=VerificationOut(
+            ai_verified=verification.ai_verified,
+            ai_confidence=verification.confidence,
+            reason=verification.reason,
+            method=verification.method,
+            photo_check=check.to_json(),
+        ),
+    )
 
 
 @router.post("/complaints/{complaint_id}/comments", response_model=ComplaintOut)

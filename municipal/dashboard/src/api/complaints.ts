@@ -7,6 +7,7 @@ import type {
   ListResponse,
   Page,
   PriorityLevel,
+  ProofResponse,
   Status,
   TimelineEvent,
   User,
@@ -48,6 +49,33 @@ export async function getDuplicates(id: number): Promise<Complaint[]> {
 
 export async function updateComplaint(id: number, body: ComplaintUpdate): Promise<Complaint> {
   const { data } = await api.patch<Complaint>(`/staff/complaints/${id}`, body)
+  return data
+}
+
+/** Where and when the after-photo was taken (API.md §5.6 live photo rules). */
+export interface CaptureInfo {
+  lat?: number
+  lng?: number
+  accuracyM?: number
+  capturedAt?: string
+}
+
+export async function uploadProof(
+  id: number,
+  photo: File,
+  note: string,
+  capture: CaptureInfo,
+): Promise<ProofResponse> {
+  const form = new FormData()
+  form.append('after_photo', photo)
+  if (note) form.append('note', note)
+  if (capture.lat !== undefined && capture.lng !== undefined) {
+    form.append('lat', String(capture.lat))
+    form.append('lng', String(capture.lng))
+  }
+  if (capture.accuracyM !== undefined) form.append('location_accuracy_m', String(capture.accuracyM))
+  if (capture.capturedAt) form.append('captured_at', capture.capturedAt)
+  const { data } = await api.post<ProofResponse>(`/staff/complaints/${id}/proof`, form)
   return data
 }
 
