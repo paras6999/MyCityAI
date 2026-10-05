@@ -9,8 +9,8 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 5 — Resolution proof & feedback** done on municipal side; next: Phase 6 announcements (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.7 (draft — friend still needs to approve 0.1.0–0.1.7) |
+| Current phase | **Phase 6 — Announcements** done on municipal side; next: Phase 7 escalation, ward & mayor views (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.8 (draft — friend still needs to approve 0.1.0–0.1.8) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
@@ -29,7 +29,7 @@
 3. Friend: Expo app skeleton with mock API (Phase 0)
 4. Friend: Phases 1–3 — OTP login, ward picker, Report screen, My Complaints + detail + timeline, push (`getExpoPushTokenAsync` → `POST /auth/device-token`)
 5. Paras: put a Gemini key in `municipal/backend/.env` (`GEMINI_API_KEY`) and try a real photo
-6. Paras: Phase 6 — announcements (CRUD, ward targeting, AI draft/translate, auto-reply to linked complaints)
+6. Paras: Phase 7 — escalation agent (SLA), ward rep & mayor dashboards, summary endpoints, public stats
 7. ML team: follow docs/ML.md — collect/label data, train `mycityai-yolov8s-v1` on Colab, then swap it into `ml/vision/models.json` (no code change)
 
 ## Team
@@ -64,6 +64,15 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-05 — Municipal Phase 6 (announcements)
+- Branches `backend/phase6-announcements` and `dashboard/phase6-announcements`.
+- Table `announcements` (migration 0007). Scope rules: officer → own department, ward rep → own ward, city-wide → mayor/admin.
+- Gemini drafts from a rough note + translates EN→MR/HI (without key: note used as-is, translations null).
+- Important/emergency → Expo push per citizen language to covered wards (batches of 100). Auto-reply timeline event for complaints in `linked_categories`.
+- One dashboard page for officer / ward rep / mayor (`/…/announcements`), write or AI-draft mode, publish drafts.
+- Tests now use bcrypt cost 4 → suite 35 s (was 5.5 min). 129 tests.
+- Verified live: officer posted to ward 12 with auto-reply link; AI draft → publish; ward-12 citizen feed shows only ward 12; "no water" complaint got the auto-reply. Note: photo category (YOLO) beats text, so the analyze hint depends on a matching photo.
+
 ### 2026-10-05 — Live photo rules (Phase 5b)
 - Branches `backend/phase5b-live-photos` and `dashboard/phase5b-live-photos`.
 - `app/services/live_photo.py`: reads EXIF GPS + capture time (Pillow), else app-reported GPS/accuracy/time; rules in API.md §5.6. Result stored as `photo_check`; EXIF stripped before saving.

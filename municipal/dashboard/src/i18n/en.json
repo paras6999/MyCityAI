@@ -284,5 +284,48 @@
     },
     "distance": "{{meters}} m from complaint",
     "atReported": "at reported location"
+  },
+  "ann": {
+    "title": "Announcements",
+    "new": "New announcement",
+    "mode": {
+      "write": "Write",
+      "ai": "AI draft"
+    },
+    "titleField": "Title (English)",
+    "messageField": "Message (English)",
+    "autoTranslate": "Translate into Marathi and Hindi automatically",
+    "noteField": "Rough note — AI writes and translates it",
+    "notePlaceholder": "e.g. pipeline repair ward 12, water 2 hrs late, new time 8-10",
+    "priority": "Priority",
+    "priorities": {
+      "emergency": "Emergency",
+      "important": "Important",
+      "general": "General"
+    },
+    "priorityHint": {
+      "emergency": "Push notification + pinned on top",
+      "important": "Push notification to citizens of these wards",
+      "general": "Shown in the feed only"
+    },
+    "audience": "Who sees it",
+    "cityWide": "Whole city",
+    "chooseWard": "Choose at least one ward.",
+    "validUntil": "Valid until (optional)",
+    "linked": "Auto-reply to complaints about (optional)",
+    "linkedHint": "While active, new complaints of these types in these wards get this announcement as an instant reply. Ctrl/Cmd-click to select several.",
+    "post": "Publish now",
+    "makeDraft": "Create AI draft",
+    "posted": "Announcement published.",
+    "drafted": "Draft created — review it and press Publish.",
+    "published": "Announcement published.",
+    "list": "Announcements in your area",
+    "showExpired": "Show expired / scheduled",
+    "empty": "No announcements yet.",
+    "draft": "Draft",
+    "aiDraft": "AI draft",
+    "publish": "Publish",
+    "delete": "Delete",
+    "autoReplies": "Auto-replies to"
   }
 }

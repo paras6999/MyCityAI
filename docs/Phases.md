@@ -69,10 +69,10 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** officer can't resolve without verified photo; citizen can reopen.
 
 ## Phase 6 — Announcements (Week 9)
-- [ ] P: announcements CRUD with permission limits, ward targeting, recurrence
-- [ ] P: AI draft + translation (LLM), publish flow, push for `important`/`emergency`
-- [ ] P: auto-reply for complaints linked to active announcements
-- [ ] P: dashboard "Post announcement" + AI suggestions panel
+- [x] P: announcements CRUD with permission limits, ward targeting, recurrence
+- [x] P: AI draft + translation (LLM), publish flow, push for `important`/`emergency`
+- [x] P: auto-reply for complaints linked to active announcements
+- [x] P: dashboard "Post announcement" (AI suggestions panel → later)
 - [ ] F: Updates tab (ward feed, priority colours), language switch EN/मराठी/हिंदी, auto-reply message on Report screen
 
 **Done when:** officer posts water delay → citizens in that ward get push in their language; "no water" complaint gets auto-reply.

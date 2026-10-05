@@ -7,6 +7,7 @@ import { homePathFor } from './auth/roles'
 import { useAuth } from './auth/useAuth'
 import { FullPageSpinner } from './components/FullPageSpinner'
 import { DashboardLayout } from './layouts/DashboardLayout'
+import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { ComplaintQueuePage } from './pages/ComplaintQueuePage'
 import { LoginPage } from './pages/LoginPage'
 import { RoleHomePage } from './pages/RoleHomePage'
@@ -41,6 +42,7 @@ export default function App() {
           element={<ComplaintQueuePage titleKey="nav.myComplaints" detailBase="/officer/complaints" />}
         />
         <Route path="complaints/:id" element={<ComplaintDetailPage backTo="/officer" />} />
+        <Route path="announcements" element={<AnnouncementsPage />} />
       </Route>
 
       <Route path="/ward" element={<RoleSection role="ward_rep" />}>
@@ -50,10 +52,12 @@ export default function App() {
           element={<ComplaintQueuePage titleKey="nav.allComplaints" detailBase="/ward/complaints" />}
         />
         <Route path="complaints/:id" element={<ComplaintDetailPage backTo="/ward/complaints" />} />
+        <Route path="announcements" element={<AnnouncementsPage />} />
       </Route>
 
       <Route path="/mayor" element={<RoleSection role="mayor" />}>
         <Route index element={<RoleHomePage role="mayor" />} />
+        <Route path="announcements" element={<AnnouncementsPage />} />
       </Route>
 
       <Route path="/admin" element={<RoleSection role="admin" />}>
