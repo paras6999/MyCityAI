@@ -1,7 +1,8 @@
 """Staff complaint endpoints (API.md §6.2–6.7)."""
 
 import time
-from typing import Annotated
+from datetime import datetime
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Query, UploadFile
 from sqlalchemy import select
@@ -26,7 +27,7 @@ from app.schemas.complaint import (
 )
 from app.schemas.user import UserOut
 from app.services import complaints as service
-from app.services import push
+from app.services import live_photo, push
 from app.services.media import media_root, mime_for, read_image, save_complaint_photo
 from app.services.realtime import hub
 
@@ -144,23 +145,47 @@ def upload_proof(
     background: BackgroundTasks,
     after_photo: Annotated[UploadFile, File()],
     note: Annotated[str | None, Form(max_length=1000)] = None,
+    lat: Annotated[float | None, Form(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Form(ge=-180, le=180)] = None,
+    captured_at: Annotated[datetime | None, Form()] = None,
+    location_accuracy_m: Annotated[float | None, Form(ge=0)] = None,
+    capture_source: Annotated[Literal["camera", "gallery"] | None, Form()] = None,
 ):
-    """After-photo of the repair; AI checks it before the complaint becomes resolved."""
+    """After-photo of the repair, taken at the complaint location; AI checks it before the
+    complaint becomes resolved."""
     complaint = service.get_for_staff(db, complaint_id, user)
     if complaint.status != "in_progress":
         raise APIError(
             409, "INVALID_STATUS_TRANSITION", "Start work on the complaint before uploading proof"
         )
     data, extension = read_image(after_photo)
+    check = live_photo.check_live_photo(
+        data,
+        lat=lat,
+        lng=lng,
+        captured_at=captured_at,
+        accuracy_m=location_accuracy_m,
+        capture_source=capture_source,
+        expected_lat=complaint.lat,
+        expected_lng=complaint.lng,
+    )
+    live_photo.enforce(check)
     before = media_root() / complaint.photo_path if complaint.photo_path else None
     before_bytes = before.read_bytes() if before and before.exists() else None
     before_mime = mime_for(before.suffix.lstrip(".")) if before_bytes else None
     verification = verify_fix(
-        complaint.category, before_bytes, before_mime, data, mime_for(extension)
+        complaint.category,
+        before_bytes,
+        before_mime,
+        data,
+        mime_for(extension),
+        at_location=check.live,
     )
 
     # Every attempt keeps its own file, so a rejected proof stays visible in history.
-    path = save_complaint_photo(complaint.id, f"after-{int(time.time())}", data, extension)
+    # Stored and served without EXIF (exact GPS, phone model): privacy.
+    stored = live_photo.strip_metadata(data, extension)
+    path = save_complaint_photo(complaint.id, f"after-{int(time.time())}", stored, extension)
     previous_status = complaint.status
     service.record_proof(
         db,
@@ -170,6 +195,7 @@ def upload_proof(
         note=(note or "").strip() or None,
         verification=verification,
     )
+    complaint.proof = {**complaint.proof, "photo_check": check.to_json()}
     db.commit()
     db.refresh(complaint)
     out = service.to_staff_out(complaint)
@@ -185,6 +211,7 @@ def upload_proof(
             ai_confidence=verification.confidence,
             reason=verification.reason,
             method=verification.method,
+            photo_check=check.to_json(),
         ),
     )
 

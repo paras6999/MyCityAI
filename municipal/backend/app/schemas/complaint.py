@@ -66,6 +66,17 @@ class ReporterRef(BaseModel):
     phone_masked: str | None
 
 
+class PhotoCheckOut(BaseModel):
+    """Was the photo taken on the spot, just now? (API.md §3.4 `photo_check`)"""
+
+    live: bool
+    source: Literal["exif", "app", "none"]
+    captured_at: AwareDatetime | None
+    accuracy_m: float | None
+    distance_m: float | None
+    problems: list[str]
+
+
 class ProofOut(BaseModel):
     """API.md §3.7 — latest resolution proof."""
 
@@ -75,6 +86,7 @@ class ProofOut(BaseModel):
     ai_confidence: float | None
     reason: str
     method: Literal["identical", "yolo", "gemini", "none"]
+    photo_check: PhotoCheckOut | None = None
     uploaded_at: AwareDatetime
 
 
@@ -106,6 +118,7 @@ class ComplaintOut(BaseModel):
     department: Department
     location: Location
     photo_url: str | None
+    photo_check: PhotoCheckOut | None = None
     status: Status
     priority_score: int
     priority_level: PriorityLevel
@@ -144,6 +157,7 @@ class CitizenComplaintOut(BaseModel):
     department: Department
     location: Location
     photo_url: str | None
+    photo_check: PhotoCheckOut | None = None
     status: Status
     priority_score: int
     priority_level: PriorityLevel
@@ -218,6 +232,7 @@ class AnalyzeOut(BaseModel):
     priority_level: PriorityLevel
     summary: str | None
     is_civic_issue: bool
+    photo_check: PhotoCheckOut
     detections: list[DetectionOut]
     nearby_duplicates: list[DuplicateHint]
     active_announcement: dict[str, Any] | None = None  # Phase 6
@@ -228,6 +243,7 @@ class VerificationOut(BaseModel):
     ai_confidence: float | None
     reason: str
     method: Literal["identical", "yolo", "gemini", "none"]
+    photo_check: PhotoCheckOut
 
 
 class ProofResponse(BaseModel):

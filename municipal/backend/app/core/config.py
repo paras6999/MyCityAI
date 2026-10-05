@@ -44,6 +44,15 @@ class Settings(BaseSettings):
     vision_models_file: str | None = None
     models_dir: str = "models"
 
+    # Deployment rule: photos must be taken with the camera on the spot, geotagged and recent.
+    # false = check and record problems but accept (development / testing with gallery photos)
+    require_live_photos: bool = False
+    max_photo_age_minutes: int = 15
+    max_gps_accuracy_m: int = 50
+    max_photo_distance_m: int = 100
+    # Cameras store local time in EXIF; used when the photo has no time-zone offset (IST)
+    photo_utc_offset_minutes: int = 330
+
     # Background jobs (auto-close resolved complaints; SLA escalation in Phase 7)
     scheduler_enabled: bool = True
     scheduler_interval_seconds: int = 300

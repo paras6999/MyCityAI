@@ -497,6 +497,7 @@ def _proof_out(c: Complaint) -> ProofOut | None:
         ai_confidence=c.proof.get("ai_confidence"),
         reason=c.proof.get("reason", ""),
         method=c.proof.get("method", "none"),
+        photo_check=c.proof.get("photo_check"),
         uploaded_at=datetime.fromisoformat(c.proof["uploaded_at"]),
     )
 
@@ -535,6 +536,7 @@ def to_staff_out(c: Complaint) -> ComplaintOut:
         department=c.department,
         location=_location(c),
         photo_url=media_url(c.photo_path),
+        photo_check=c.photo_meta,
         status=c.status,
         priority_score=c.priority_score,
         priority_level=priority_level(c.priority_score),
@@ -577,6 +579,7 @@ def to_citizen_out(c: Complaint) -> CitizenComplaintOut:
         department=c.department,
         location=_location(c),
         photo_url=media_url(c.photo_path),
+        photo_check=c.photo_meta,
         status=c.status,
         priority_score=c.priority_score,
         priority_level=priority_level(c.priority_score),

@@ -50,12 +50,13 @@ def test_proof_without_ai_resolves_as_not_checked(client, sent):  # noqa: F811
 
     body = upload_proof(client, complaint["id"], roads).json()
 
-    assert body["verification"] == {
-        "ai_verified": None,
-        "ai_confidence": None,
-        "reason": "AI could not check this repair; the citizen will confirm",
-        "method": "none",
-    }
+    verification = body["verification"]
+    assert verification["ai_verified"] is None
+    assert verification["method"] == "none"
+    assert verification["reason"] == "AI could not check this repair; the citizen will confirm"
+    # Test photos carry no location; with REQUIRE_LIVE_PHOTOS off this is recorded, not enforced.
+    assert verification["photo_check"]["live"] is False
+    assert "Photo has no location" in verification["photo_check"]["problems"]
     assert body["complaint"]["status"] == "resolved"
     assert body["complaint"]["resolved_at"] is not None
     assert body["complaint"]["proof"]["after_photo_url"].startswith(

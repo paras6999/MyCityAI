@@ -61,7 +61,7 @@ Priority: **M** = Must (MVP) · **S** = Should · **C** = Could (if time)
 | ID | Feature | Priority |
 |---|---|---|
 | CA-1 | Phone OTP login, select/detect ward | M |
-| CA-2 | Report issue: photo (camera/gallery) + auto GPS + description | M |
+| CA-2 | Report issue: **camera-only** geotagged photo (no gallery in production) + auto GPS + description | M |
 | CA-3 | AI category shown before submit; duplicate warning | M |
 | CA-4 | My complaints list with status chips | M |
 | CA-5 | Complaint detail with timeline, assigned officer, SLA | M |
@@ -81,7 +81,7 @@ Priority: **M** = Must (MVP) · **S** = Should · **C** = Could (if time)
 | MD-2 | AI-sorted priority queue with filters and SLA timers | officer | M |
 | MD-3 | Complaint detail: photo, map, timeline, duplicates | all | M |
 | MD-4 | Assign / change status / reject with reason | officer | M |
-| MD-5 | Upload after-photo; AI verification before `resolved` | officer | M |
+| MD-5 | Upload after-photo **taken at the complaint location** (geotagged, recent); AI verification before `resolved` | officer | M |
 | MD-6 | Live updates via WebSocket | all | M |
 | MD-7 | Automatic escalation officer → ward rep → mayor | system | M |
 | MD-8 | Ward rep view: ward KPIs, escalation inbox, remind/escalate | ward_rep | M |

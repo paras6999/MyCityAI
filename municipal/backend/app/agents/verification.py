@@ -41,7 +41,10 @@ def verify_fix(
     before_mime: str | None,
     after: bytes,
     after_mime: str,
+    at_location: bool = False,
 ) -> Verification:
+    """`at_location`: the after-photo is geotagged at the complaint location (live_photo.py),
+    which is stronger evidence of "same place" than comparing the two pictures."""
     if before is not None and hashlib.sha256(before).digest() == hashlib.sha256(after).digest():
         return Verification(
             "not_fixed", 1.0, "The after-photo is the same as the complaint photo", "identical"
@@ -60,7 +63,7 @@ def verify_fix(
         before_hits = (
             [d for d in vision.detect(before) or [] if d.category == category] if before else []
         )
-        if before_hits and scene.same_place(before, after) is False:
+        if before_hits and not at_location and scene.same_place(before, after) is False:
             return Verification(
                 "not_checked",
                 None,

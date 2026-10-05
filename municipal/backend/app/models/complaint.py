@@ -35,6 +35,8 @@ class Complaint(Base):
 
     # Relative to MEDIA_DIR, e.g. "complaints/4187/photo.jpg". Null for non-photo sources.
     photo_path: Mapped[str | None] = mapped_column(String(255))
+    # Live-photo check of the complaint photo (live, source, captured_at, distance_m, problems)
+    photo_meta: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
     status: Mapped[str] = mapped_column(String(20), default="new")
     priority_score: Mapped[int] = mapped_column(Integer, default=50)
