@@ -141,6 +141,57 @@ def check_fix(
         return None
 
 
+class AnnouncementText(BaseModel):
+    title: str = Field(description="Short headline, at most 8 words")
+    message: str = Field(description="1-3 short sentences for citizens, with times/places")
+
+
+class Translations(BaseModel):
+    mr: AnnouncementText = Field(description="Marathi (Devanagari script)")
+    hi: AnnouncementText = Field(description="Hindi (Devanagari script)")
+
+
+DRAFT_PROMPT = """You write public notices for Kolhapur Municipal Corporation.
+Turn the officer's rough note into a clear, polite announcement in simple English.
+Keep every time, date, place and ward number exactly. Do not invent facts.
+Department: {department}. Officer's note: {text}"""
+
+TRANSLATE_PROMPT = """Translate this municipal announcement for citizens of Kolhapur into
+Marathi and Hindi (Devanagari). Keep numbers, times, dates and place names exact.
+Title: {title}
+Message: {message}"""
+
+
+def _structured(prompt: str, schema: type[BaseModel]):
+    client = _client()
+    if client is None:
+        return None
+    try:
+        response = client.models.generate_content(
+            model=get_settings().gemini_model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json", response_schema=schema, temperature=0.2
+            ),
+        )
+        if isinstance(response.parsed, schema):
+            return response.parsed
+        return schema.model_validate_json(response.text or "")
+    except Exception:
+        logger.exception("Gemini %s request failed", schema.__name__)
+        return None
+
+
+def draft_announcement(text: str, department: str | None) -> AnnouncementText | None:
+    return _structured(
+        DRAFT_PROMPT.format(text=text, department=department or "general"), AnnouncementText
+    )
+
+
+def translate_announcement(title: str, message: str) -> Translations | None:
+    return _structured(TRANSLATE_PROMPT.format(title=title, message=message), Translations)
+
+
 def embed_text(text: str) -> list[float] | None:
     client = _client()
     if client is None or not text.strip():

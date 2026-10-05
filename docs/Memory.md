@@ -53,6 +53,11 @@
 | 2026-10-05 | **Production photos must be live**: camera only, geotagged, ≤ 15 min old; proofs within 100 m of the complaint (`REQUIRE_LIVE_PHOTOS=true`; off in development) | Prevents fake complaints and fake repair proofs |
 | 2026-10-02 | V-JEPA 2 (Meta, MIT) planned for police CCTV action recognition (fight/accident) in Phase 9 | YOLO sees objects, not actions |
 
+## Deferred ideas (agreed for later)
+- Visible geotag stamp on proof photos (GPS, date/time, complaint code, address printed on the image).
+- Separate **field worker** role: sees only jobs assigned to them, uploads proof from a phone.
+- Device attestation (Google Play Integrity) so a modified app cannot fake photo location.
+
 ## Open questions
 - Friend's name and GitHub username (for CODEOWNERS)
 - Cloud host for the demo backend (Render vs Railway) — or local only?
