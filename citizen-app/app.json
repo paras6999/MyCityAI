@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "MyCityAI",
+    "slug": "mycityai-citizen",
+    "scheme": "mycityai",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "MyCityAI uses the camera to photograph civic issues you report.",
+        "NSPhotoLibraryUsageDescription": "MyCityAI lets you attach an existing photo to a report.",
+        "NSLocationWhenInUseUsageDescription": "MyCityAI uses your location to attach it to the issue you report."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#1D4ED8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-localization",
+      "expo-font",
+      ["expo-image-picker", { "cameraPermission": "MyCityAI uses the camera to photograph civic issues you report.", "photosPermission": "MyCityAI lets you attach an existing photo to a report." }],
+      ["expo-location", { "locationWhenInUsePermission": "MyCityAI uses your location to attach it to the issue you report." }],
+      "expo-notifications"
+    ],
+    "experiments": { "typedRoutes": true }
+  }
+}
