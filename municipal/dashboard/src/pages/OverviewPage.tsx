@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 
 import { getCategorySummary, getDepartmentSummary, getKpis, getWardSummary } from '../api/summary'
 import { useAuth } from '../auth/useAuth'
+import { AiSuggestions } from '../components/AiSuggestions'
 import { CategoryBars } from '../components/summary/CategoryBars'
 import { DepartmentTable } from '../components/summary/DepartmentTable'
 import { EscalationList } from '../components/summary/EscalationList'
@@ -102,6 +103,8 @@ export function OverviewPage({ role }: { role: OverviewRole }) {
       ) : (
         <Placeholder />
       )}
+
+      <AiSuggestions />
 
       {role === 'mayor' && (
         <>

@@ -6,6 +6,7 @@ import { RequireRole } from './auth/RequireRole'
 import { homePathFor } from './auth/roles'
 import { useAuth } from './auth/useAuth'
 import { FullPageSpinner } from './components/FullPageSpinner'
+import { AiSuggestions } from './components/AiSuggestions'
 import { DashboardLayout } from './layouts/DashboardLayout'
 import { AnnouncementsPage } from './pages/AnnouncementsPage'
 import { ComplaintQueuePage } from './pages/ComplaintQueuePage'
@@ -14,6 +15,7 @@ import { LoginPage } from './pages/LoginPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { PublicStatsPage } from './pages/PublicStatsPage'
 import { RoleHomePage } from './pages/RoleHomePage'
+import { UtilitiesPage } from './pages/UtilitiesPage'
 
 // The detail page pulls in the map library, so it is loaded only when opened.
 const ComplaintDetailPage = lazy(() =>
@@ -47,7 +49,13 @@ export default function App() {
       <Route path="/officer" element={<RoleSection role="officer" />}>
         <Route
           index
-          element={<ComplaintQueuePage titleKey="nav.myComplaints" detailBase="/officer/complaints" />}
+          element={
+            <ComplaintQueuePage
+              titleKey="nav.myComplaints"
+              detailBase="/officer/complaints"
+              header={<AiSuggestions />}
+            />
+          }
         />
         <Route path="complaints/:id" element={<ComplaintDetailPage backTo="/officer" />} />
         <Route
@@ -62,6 +70,7 @@ export default function App() {
           }
         />
         <Route path="performance" element={<OverviewPage role="officer" />} />
+        <Route path="utilities" element={<UtilitiesPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
       </Route>
 
@@ -78,6 +87,7 @@ export default function App() {
             />
           }
         />
+        <Route path="utilities" element={<UtilitiesPage />} />
         <Route
           path="complaints"
           element={<ComplaintQueuePage titleKey="nav.allComplaints" detailBase="/ward/complaints" />}
@@ -90,6 +100,7 @@ export default function App() {
         <Route index element={<OverviewPage role="mayor" />} />
         <Route path="wards" element={<WardsPage />} />
         <Route path="departments" element={<DepartmentsPage />} />
+        <Route path="utilities" element={<UtilitiesPage />} />
         <Route
           path="escalations"
           element={
