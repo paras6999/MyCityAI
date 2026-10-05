@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { ApiError } from '../../../src/api/client'
 import { complaintsApi } from '../../../src/api/complaints'
 import { ConfirmDialog } from '../../../src/components/Dialog'
 import { Screen } from '../../../src/components/Screen'
@@ -59,7 +60,14 @@ export default function ReportScreen() {
       reset()
       router.replace({ pathname: '/submitted/[id]', params: { id: String(complaint.id) } })
     } catch (e) {
-      setError(errorMessage(e, t))
+      // PHOTO_NOT_LIVE (production): the backend lists what is wrong with the photo in `details`.
+      if (e instanceof ApiError && e.code === 'PHOTO_NOT_LIVE') {
+        const problems = Array.isArray(e.details) ? e.details.map((d: { message?: string }) => d?.message ?? '').join(' ') : ''
+        setError(`${t('report.notLiveTitle')} ${problems}`.trim())
+        update({ step: 'photo', photo: null, analysis: null })
+      } else {
+        setError(errorMessage(e, t))
+      }
       setSubmitting(false)
     }
   }

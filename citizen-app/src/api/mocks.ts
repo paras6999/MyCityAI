@@ -3,7 +3,7 @@
 import type { MultipartBody, RequestOptions } from './client'
 import { ApiError } from './client'
 import type {
-  AnalyzeResult, Category, Complaint, Department, PriorityLevel, Status, TimelineEvent, User, Ward,
+  Announcement, AnalyzeResult, Category, Complaint, Department, PriorityLevel, Status, TimelineEvent, User, Ward,
 } from './types'
 
 const LATENCY_MS = 450
@@ -82,6 +82,7 @@ function seed(lat: number, lng: number) {
     make(41, 'pothole', 'assigned', 78, 52, 'Large pothole near the school entrance.', 'School Road', 0.0006, -0.002),
     make(40, 'drainage_overflow', 'resolved', 62, 120, 'Drain overflowing onto the footpath.', 'Station Road', -0.001, -0.001),
   ]
+  db.complaints.find((x) => x.id === 40)!.proof = { after_photo_url: null, note: 'Drain cleared and cover repaired', ai_verified: null, ai_confidence: null, reason: 'AI could not check; your confirmation is the check.', method: 'none', uploaded_at: hoursAgo(20) }
   const flow: [number, Status[]][] = [[43, []], [42, ['assigned', 'in_progress']], [41, ['assigned']], [40, ['assigned', 'in_progress', 'resolved']]]
   for (const [id, steps] of flow) {
     const c = db.complaints.find((x) => x.id === id)!
@@ -91,6 +92,15 @@ function seed(lat: number, lng: number) {
     db.timelines[id] = events
   }
 }
+
+const HOME_ANNOUNCEMENTS: Announcement[] = [
+{
+  id: 310, priority: 'important', department: 'water', city_wide: false, ward_ids: [1],
+  valid_until: new Date(Date.now() + 6 * 3_600_000).toISOString(),
+  title: { en: 'Water Supply Delayed', mr: 'पाणीपुरवठा उशिरा', hi: 'जल आपूर्ति में देरी' },
+  message: { en: 'Supply delayed by 2 hours today (pipeline repair). New timing: 8–10 AM.', mr: 'आज पाणीपुरवठा 2 तास उशिरा (पाइपलाइन दुरुस्ती). नवीन वेळ: सकाळी 8–10.', hi: 'आज जल आपूर्ति 2 घंटे देरी से (पाइपलाइन मरम्मत)। नया समय: सुबह 8–10।' },
+},
+]
 
 const wait = () => new Promise((r) => setTimeout(r, LATENCY_MS))
 const requireUser = (): User => {
@@ -120,6 +130,7 @@ export async function mockRequest<T>(method: string, path: string, options: Requ
     return { ...tokenResponse(user!), is_new_user: isNew } as T
   }
   if (route === 'POST /auth/refresh') return tokenResponse(requireUser()) as T
+  if (route === 'GET /stats/public') return { period: '2026', total_complaints: 128, resolved: 97, pending: 31, resolution_rate: 0.758, avg_resolution_hours: 26.4, satisfaction_avg: 4.1, ratings_count: 54, monthly: [{ month: '2026-07', received: 22, resolved: 19 }, { month: '2026-08', received: 41, resolved: 33 }, { month: '2026-09', received: 48, resolved: 36 }, { month: '2026-10', received: 17, resolved: 9 }], by_department: [{ department: 'roads', total: 52, resolution_rate: 0.81, avg_resolution_hours: 30 }, { department: 'water', total: 31, resolution_rate: 0.74, avg_resolution_hours: 20 }, { department: 'waste', total: 25, resolution_rate: 0.68, avg_resolution_hours: 18 }], top_wards: [{ ward_id: 1, number: 1, name: 'Ward 1 – Central', resolved: 40, resolution_rate: 0.85 }, { ward_id: 2, number: 2, name: 'Ward 2 – North', resolved: 31, resolution_rate: 0.77 }], generated_at: new Date().toISOString() } as T
   if (route === 'GET /wards') return { items: wards } as T
   if (route === 'GET /auth/me') return requireUser() as T
   if (route === 'PATCH /auth/me') {
@@ -129,6 +140,10 @@ export async function mockRequest<T>(method: string, path: string, options: Requ
   if (path === '/auth/device-token') return undefined as T
 
   requireUser()
+  if (route === 'GET /announcements') {
+    seed(16.705, 74.243)
+    return { items: HOME_ANNOUNCEMENTS, page: 1, page_size: 20, total: HOME_ANNOUNCEMENTS.length } as T
+  }
   if (route === 'GET /citizen/home') {
     seed(16.705, 74.243)
     const open = db.complaints.filter((c) => !['resolved', 'closed', 'rejected', 'merged'].includes(c.status)).length
@@ -136,7 +151,7 @@ export async function mockRequest<T>(method: string, path: string, options: Requ
     return {
       open_complaints: open,
       recent_complaints: db.complaints.slice(0, 3),
-      announcements: [],
+      announcements: HOME_ANNOUNCEMENTS,
       ward: ward ? { id: ward.id, number: ward.number, name: ward.name } : null,
     } as T
   }
@@ -146,6 +161,17 @@ export async function mockRequest<T>(method: string, path: string, options: Requ
     const size = Number(options.query?.page_size ?? 20)
     const filtered = db.complaints.filter((c) => !options.query?.status || c.status === options.query.status)
     return { items: filtered.slice((page - 1) * size, page * size), page, page_size: size, total: filtered.length } as T
+  }
+  const fb = path.match(/^\/citizen\/complaints\/(\d+)\/feedback$/)
+  if (method === 'POST' && fb) {
+    const c = db.complaints.find((x) => x.id === Number(fb[1]))
+    if (!c) throw notFound()
+    if (c.status !== 'resolved') throw new ApiError(409, 'INVALID_STATUS_TRANSITION', 'Feedback is only possible after resolution')
+    if (json.action === 'reopen' && !json.comment) throw new ApiError(400, 'VALIDATION_ERROR', 'A comment is required to reopen')
+    c.status = json.action === 'confirm' ? 'closed' : 'reopened'
+    c.feedback = { action: json.action, rating: json.rating ?? null, comment: json.comment ?? null, created_at: new Date().toISOString() }
+    db.timelines[c.id].push(event(c.id, c.id * 10 + 9, json.action === 'confirm' ? 'feedback' : 'reopened', 0, c.status))
+    return c as T
   }
   const detail = path.match(/^\/citizen\/complaints\/(\d+)(\/timeline)?$/)
   if (method === 'GET' && detail) {
@@ -163,6 +189,7 @@ export async function mockRequest<T>(method: string, path: string, options: Requ
       summary: 'Large pothole on the road surface', is_civic_issue: true,
       detections: [{ label: 'pothole', confidence: 0.91, box: [0.33, 0.68, 0.59, 0.87] }],
       nearby_duplicates: [{ id: near.id, code: near.code, category: near.category, distance_m: 18, status: near.status }],
+      photo_check: { live: true, source: 'app', captured_at: new Date().toISOString(), accuracy_m: Number(field(options.multipart, 'location_accuracy_m') ?? 0) || null, distance_m: null, problems: [] },
       active_announcement: null,
     }
     return result as T

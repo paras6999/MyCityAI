@@ -1,4 +1,4 @@
-import type { Language } from '../api/types'
+import type { Language, LocalizedText } from '../api/types'
 
 const LOCALES: Record<Language, string> = { en: 'en-IN', hi: 'hi-IN', mr: 'mr-IN' }
 
@@ -35,4 +35,9 @@ export function formatCoords(lat: number, lng: number): string {
 
 export function shortLocation(address: string | null, lat: number, lng: number): string {
   return address?.trim() || formatCoords(lat, lng)
+}
+
+/** Announcement text in the citizen's language; falls back to English (always present, docs/API.md §3.9). */
+export function localized(text: LocalizedText, lang: Language): string {
+  return text[lang] || text.en
 }

@@ -5,9 +5,9 @@ import { complaintsApi } from '../../api/complaints'
 import type { AnalyzeResult } from '../../api/types'
 import { useI18n } from '../../i18n'
 import { CATEGORY_ICONS, ISSUE_TYPES, categoryKey, errorMessage, priorityKey, PRIORITY_TONE } from '../../lib/domain'
-import { formatCoords } from '../../lib/format'
+import { formatCoords, localized } from '../../lib/format'
 import { LocationError, getCurrentFix, reverseAddress } from '../../lib/location'
-import { PHOTO_MAX_MB, PhotoError, pickPhoto } from '../../lib/photo'
+import { PHOTO_MAX_MB, PhotoError, takePhoto } from '../../lib/photo'
 import { useReport } from '../../store/report'
 import { colors, radius, spacing } from '../../theme'
 import { PriorityBadge } from '../complaint'
@@ -50,17 +50,35 @@ export function PhotoStep() {
   const { t } = useI18n()
   const { draft, update } = useReport()
   const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  const choose = async (source: 'camera' | 'gallery') => {
+  // Camera only: the backend wants a photo taken on the spot (docs/API.md §5.6). Right after the shot we
+  // read the GPS fix so the server can check accuracy; it also pre-fills the location step.
+  const shoot = async () => {
     setError(null)
+    setBusy(true)
     try {
-      const photo = await pickPhoto(source)
-      if (photo) update({ photo, analysis: null, duplicateAcknowledged: false })
+      const photo = await takePhoto()
+      if (!photo) return
+      let fix: Awaited<ReturnType<typeof getCurrentFix>> | null = null
+      try {
+        fix = await getCurrentFix()
+      } catch {
+        // The location step explains and lets the citizen place the pin manually.
+      }
+      update({
+        photo: { ...photo, accuracyM: fix?.accuracyM ?? null },
+        analysis: null,
+        duplicateAcknowledged: false,
+        ...(fix && !draft.location ? { location: { lat: fix.lat, lng: fix.lng, address: fix.address ?? '' } } : {}),
+      })
     } catch (e) {
       if (e instanceof PhotoError) {
-        setError(e.reason === 'permission' ? t(source === 'camera' ? 'report.permissionCamera' : 'report.permissionPhotos')
+        setError(e.reason === 'permission' ? t('report.permissionCamera')
           : e.reason === 'size' ? t('report.photoTooBig', { mb: PHOTO_MAX_MB }) : t('report.photoType'))
       } else setError(t('common.errorBody'))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -75,18 +93,12 @@ export function PhotoStep() {
               <Icon name="close" size={18} color="#FFFFFF" />
             </Pressable>
           </View>
-          <View style={styles.row}>
-            <Button label={t('report.camera')} icon="camera-outline" variant="secondary" onPress={() => choose('camera')} style={styles.flex} />
-            <Button label={t('report.gallery')} icon="image-outline" variant="secondary" onPress={() => choose('gallery')} style={styles.flex} />
-          </View>
+          <Button label={t('report.retake')} icon="camera-retake-outline" variant="secondary" onPress={shoot} loading={busy} />
         </View>
       ) : (
         <View style={styles.dropzone}>
           <View style={styles.dropIcon}><Icon name="camera-plus-outline" size={32} color={colors.primary} /></View>
-          <View style={{ alignSelf: 'stretch', gap: spacing.sm }}>
-            <Button label={t('report.camera')} icon="camera-outline" onPress={() => choose('camera')} />
-            <Button label={t('report.gallery')} icon="image-outline" variant="secondary" onPress={() => choose('gallery')} />
-          </View>
+          <Button label={t('report.camera')} icon="camera-outline" onPress={shoot} loading={busy} style={{ alignSelf: 'stretch' }} />
         </View>
       )}
       {error ? <Banner tone="danger" icon="alert-circle-outline"><Text variant="small" color={colors.danger}>{error}</Text></Banner> : null}
@@ -178,7 +190,7 @@ export function analysisKey(d: { photo: { uri: string } | null; location: { lat:
 }
 
 export function AnalysisStep() {
-  const { t } = useI18n()
+  const { t, language } = useI18n()
   const router = useRouter()
   const { draft, update } = useReport()
   const key = analysisKey(draft)
@@ -228,6 +240,19 @@ export function AnalysisStep() {
     <View style={{ gap: spacing.lg }}>
       <StepTitle title={t('report.aiTitle')} />
       <AiResultCard result={result} />
+      {result.active_announcement ? (
+        <Banner tone="info" icon="bullhorn-outline">
+          <Text variant="small" color={colors.primaryDark} style={{ fontWeight: '700' }}>{t('report.announcementTitle')}: {localized(result.active_announcement.title, language)}</Text>
+          <Text variant="small" color={colors.primaryDark}>{localized(result.active_announcement.message, language)}</Text>
+        </Banner>
+      ) : null}
+      {result.photo_check && !result.photo_check.live ? (
+        <Banner tone="warning" icon="camera-off-outline">
+          <Text variant="small" color={colors.warning} style={{ fontWeight: '700' }}>{t('report.notLiveTitle')}</Text>
+          {result.photo_check.problems.map((problem) => { const text = typeof problem === 'string' ? problem : problem.message; return <Text key={text} variant="small" color={colors.warning}>• {text}</Text> })}
+          <Button label={t('report.retake')} variant="secondary" style={{ minHeight: 40, marginTop: spacing.sm, alignSelf: 'flex-start' }} onPress={() => update({ step: 'photo' })} />
+        </Banner>
+      ) : null}
       {!result.is_civic_issue ? <Banner tone="warning" icon="image-search-outline"><Text variant="small" color={colors.warning}>{t('report.aiNotCivic')}</Text></Banner> : null}
       <CategoryChoice result={result} />
 

@@ -34,6 +34,37 @@ export interface Location {
   ward_id: number | null
 }
 
+/** docs/API.md §3.4: was the photo taken on the spot, just now? */
+export interface PhotoCheck {
+  live: boolean
+  source: 'exif' | 'app' | 'none'
+  captured_at: string | null
+  accuracy_m: number | null
+  distance_m: number | null
+  /** Plain strings from the backend; objects with `message` are tolerated defensively. */
+  problems: (string | { code?: string; message: string })[]
+}
+
+/** docs/API.md §3.7 */
+export interface Proof {
+  after_photo_url: string | null
+  note: string | null
+  /** true = AI confirmed the fix, false = AI says not fixed, null = AI could not check. */
+  ai_verified: boolean | null
+  ai_confidence: number | null
+  reason: string
+  method: 'identical' | 'yolo' | 'gemini' | 'none'
+  uploaded_at: string
+}
+
+/** docs/API.md §3.8 */
+export interface Feedback {
+  action: 'confirm' | 'reopen' | 'auto_closed'
+  rating: number | null
+  comment: string | null
+  created_at: string
+}
+
 export interface Complaint {
   id: number
   code: string
@@ -52,8 +83,10 @@ export interface Complaint {
   assigned_to: { name: string | null } | null
   sla_hours: number
   sla_due_at: string
-  proof: Record<string, unknown> | null
-  feedback: Record<string, unknown> | null
+  proof: Proof | null
+  feedback: Feedback | null
+  photo_check?: PhotoCheck | null
+  resolved_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -106,17 +139,30 @@ export interface AnalyzeResult {
   priority_level: PriorityLevel
   summary: string | null
   is_civic_issue: boolean
+  photo_check?: PhotoCheck
   detections: Detection[]
   nearby_duplicates: DuplicateHint[]
-  active_announcement: Record<string, unknown> | null
+  /** Set when an active announcement explains the issue (e.g. planned water shutdown). */
+  active_announcement: Announcement | null
 }
+
+/** `en` is always present; `mr` / `hi` may be null until translated (docs/API.md §3.9). */
+export type LocalizedText = { en: string; mr?: string | null; hi?: string | null }
 
 export interface Announcement {
   id: number
-  title: string
-  body: string
+  title: LocalizedText
+  message: LocalizedText
   priority: 'emergency' | 'important' | 'general'
-  [key: string]: unknown
+  department?: Department | null
+  ward_ids?: number[]
+  city_wide?: boolean
+  valid_from?: string | null
+  valid_until?: string | null
+  recurrence?: { rule: 'daily' | 'weekly'; days?: string[]; time?: string } | null
+  status?: 'published' | 'draft'
+  linked_categories?: Category[]
+  created_at?: string
 }
 
 export interface HomeSummary {
@@ -132,6 +178,9 @@ export interface PickedPhoto {
   mimeType: 'image/jpeg' | 'image/png'
   fileName: string
   sizeBytes?: number
+  /** When the camera took the photo (ISO 8601) and the GPS accuracy at that moment (docs/API.md §5.6). */
+  capturedAt: string
+  accuracyM?: number | null
 }
 
 export interface SubmitInput {

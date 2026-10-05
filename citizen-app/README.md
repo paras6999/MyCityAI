@@ -43,6 +43,11 @@ UI components never call `fetch`; everything goes through `src/api/`.
 
 ## Backend contract notes
 - **Auth** is phone + one-time code (docs/API.md §4.1). There is no email/password or separate register endpoint: "Create account" collects the name, and the account is created on the first successful OTP check. The name and ward are saved with `PATCH /auth/me`.
+- **Live photos (§5.6):** the app only offers the camera (no gallery) and sends `captured_at`, `location_accuracy_m` and `capture_source=camera` with every analyze/submit call. The analysis step shows the backend's `photo_check` problems and lets the citizen retake; a production `PHOTO_NOT_LIVE` rejection sends them back to the photo step.
+- **Resolution (§5.4):** resolved complaints show the municipality's proof photo with the AI verdict, and the original reporter can Confirm (with a 1–5 rating) or Reopen (comment required).
+- **Announcements (§3.9)** are per-language objects; the app shows the citizen's language and falls back to English.
 - **Notifications:** the backend has no notification-list endpoint yet, only push delivery (§10.2). The in-app list is built from the timelines of the citizen's own complaints; read state is stored on the device. Push registration (`POST /auth/device-token`) is implemented for phones.
-- **Home stats** are counted from `GET /citizen/complaints` (first 100) because there is no stats endpoint.
+- **City stats (§8):** `GET /stats/public` (no login) powers the City Stats screen: totals, monthly chart, department rates, top wards. Rates arrive as fractions (0–1).
+- **Announcements (§7):** Home shows the five from `/citizen/home`; "View all" opens `GET /announcements`. A push of type `announcement` opens that list; `complaint_status` and `feedback_request` open the complaint.
+- **Home counts** (total / pending / in progress / resolved) are counted from `GET /citizen/complaints` (first 100): there is no per-citizen stats endpoint.
 - The map is Leaflet (as in the municipal dashboard) rendered in a WebView / iframe, so there is a single implementation for all platforms. Tiles come from OpenStreetMap.

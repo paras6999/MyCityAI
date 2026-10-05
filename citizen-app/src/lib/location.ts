@@ -4,6 +4,8 @@ export interface Fix {
   lat: number
   lng: number
   address: string | null
+  /** GPS accuracy in metres; the backend checks it against its live-photo limit (docs/API.md §5.6). */
+  accuracyM: number | null
 }
 
 export type LocationFailure = 'denied' | 'failed'
@@ -32,7 +34,7 @@ export async function getCurrentFix(): Promise<Fix> {
   try {
     const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High })
     const { latitude: lat, longitude: lng } = position.coords
-    return { lat, lng, address: await reverseAddress(lat, lng) }
+    return { lat, lng, address: await reverseAddress(lat, lng), accuracyM: position.coords.accuracy ?? null }
   } catch {
     throw new LocationError('failed')
   }

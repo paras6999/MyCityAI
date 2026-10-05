@@ -8,6 +8,7 @@ import { PriorityBadge, StatusBadge, Timeline } from '../../../src/components/co
 import { Screen } from '../../../src/components/Screen'
 import { ScreenHeader } from '../../../src/components/ScreenHeader'
 import { ErrorState, Skeleton } from '../../../src/components/feedback'
+import { FeedbackCard, ProofCard } from '../../../src/components/Resolution'
 import { LocationMap } from '../../../src/components/map/LocationMap'
 import { Banner, Button, Card, Icon, SectionHeader, Text } from '../../../src/components/ui'
 import { useQuery } from '../../../src/hooks/useApi'
@@ -83,7 +84,7 @@ export default function ComplaintDetailScreen() {
                 {!['resolved', 'closed', 'rejected', 'merged'].includes(complaint.status) ? (
                   <InfoRow icon="clock-check-outline" label={t('detail.sla')} value={formatDateTime(complaint.sla_due_at, language)} />
                 ) : null}
-                {complaint.duplicate_count > 1 ? <InfoRow icon="account-group-outline" label="" value={t('detail.reports', { n: complaint.duplicate_count })} /> : null}
+                {complaint.duplicate_count > 0 ? <InfoRow icon="account-group-outline" label="" value={t('detail.reports', { n: complaint.duplicate_count + 1 })} /> : null}
               </Card>
             </View>
 
@@ -101,6 +102,9 @@ export default function ComplaintDetailScreen() {
                 </Card>
               </View>
             ) : null}
+
+            <ProofCard complaint={complaint} />
+            <FeedbackCard complaint={complaint} onUpdated={refresh} />
 
             <View>
               <SectionHeader title={t('detail.timeline')} />

@@ -2,19 +2,20 @@ import { useCallback, useState } from 'react'
 import { Pressable, StyleSheet, View } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { complaintsApi } from '../../../src/api/complaints'
-import type { Announcement, Complaint } from '../../../src/api/types'
+import type { Complaint } from '../../../src/api/types'
+import { AnnouncementCard } from '../../../src/components/AnnouncementCard'
 import { ComplaintCard } from '../../../src/components/complaint'
 import { Screen } from '../../../src/components/Screen'
 import { EmptyState, ErrorState, ListSkeleton, Skeleton } from '../../../src/components/feedback'
 import { Avatar, Button, Card, Icon, IconButton, SectionHeader, Text } from '../../../src/components/ui'
 import { useQuery } from '../../../src/hooks/useApi'
 import { useI18n } from '../../../src/i18n'
+import { localized } from '../../../src/lib/format'
 import { ISSUE_TYPES, errorMessage, groupOf } from '../../../src/lib/domain'
 import { useAuth } from '../../../src/store/auth'
 import { useNotifications } from '../../../src/store/notifications'
 import { colors, radius, shadow, spacing, toneColors } from '../../../src/theme'
 
-const ANNOUNCEMENT_TONE = { emergency: 'danger', important: 'warning', general: 'success' } as const
 
 function useGreeting() {
   const { t } = useI18n()
@@ -112,8 +113,17 @@ export default function HomeScreen() {
         <RecentList loading={home.loading && !home.data} error={home.error} items={home.data?.recent_complaints} onRetry={home.reload} onReport={() => startReport()} />
       </View>
 
+      <Card onPress={() => router.push('/stats')} accessibilityLabel={t('stats.title')} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View style={styles.quickIcon}><Icon name="chart-box-outline" size={24} color={colors.primary} /></View>
+        <View style={{ flex: 1 }}>
+          <Text variant="h3">{t('stats.title')}</Text>
+          <Text variant="small" color={colors.textMuted}>{t('stats.homeBody')}</Text>
+        </View>
+        <Icon name="chevron-right" size={20} color={colors.textFaint} />
+      </Card>
+
       <View>
-        <SectionHeader title={t('home.updates')} />
+        <SectionHeader title={t('home.updates')} action={t('common.viewAll')} onAction={() => router.push('/announcements')} />
         {home.data?.announcements.length ? (
           <View style={{ gap: spacing.md }}>{home.data.announcements.map((a) => <AnnouncementCard key={a.id} item={a} />)}</View>
         ) : (
@@ -132,16 +142,6 @@ function RecentList({ loading, error, items, onRetry, onReport }: { loading: boo
     return <Card><EmptyState icon="clipboard-text-outline" title={t('complaints.empty')} body={t('complaints.emptyBody')} actionLabel={t('home.heroCta')} onAction={onReport} /></Card>
   }
   return <View style={{ gap: spacing.md }}>{items.map((c) => <ComplaintCard key={c.id} complaint={c} />)}</View>
-}
-
-function AnnouncementCard({ item }: { item: Announcement }) {
-  const tone = toneColors[ANNOUNCEMENT_TONE[item.priority] ?? 'success']
-  return (
-    <Card style={{ borderLeftWidth: 4, borderLeftColor: tone.fg, gap: spacing.xs }}>
-      <Text variant="h3">{item.title}</Text>
-      <Text variant="small" color={colors.textMuted}>{item.body}</Text>
-    </Card>
-  )
 }
 
 const styles = StyleSheet.create({

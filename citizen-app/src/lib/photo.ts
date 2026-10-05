@@ -17,17 +17,16 @@ function mimeOf(asset: ImagePicker.ImagePickerAsset): PickedPhoto['mimeType'] | 
   return null
 }
 
-/** Returns null if the citizen cancelled; throws PhotoError for permission/type/size problems. */
-export async function pickPhoto(source: 'camera' | 'gallery'): Promise<PickedPhoto | null> {
-  const permission =
-    source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync()
+/**
+ * Takes a live photo with the camera. The backend requires complaint photos to be taken on the spot
+ * (docs/API.md §5.6), so there is deliberately no gallery option. EXIF is kept so the server can read
+ * the capture time and GPS. Returns null if the citizen cancelled.
+ */
+export async function takePhoto(): Promise<PickedPhoto | null> {
+  const permission = await ImagePicker.requestCameraPermissionsAsync()
   if (!permission.granted) throw new PhotoError('permission')
 
-  const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.8, allowsEditing: false }
-  const result =
-    source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options)
+  const result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8, exif: true })
   if (result.canceled || !result.assets[0]) return null
 
   const asset = result.assets[0]
@@ -39,5 +38,6 @@ export async function pickPhoto(source: 'camera' | 'gallery'): Promise<PickedPho
     mimeType,
     fileName: asset.fileName ?? `photo.${mimeType === 'image/png' ? 'png' : 'jpg'}`,
     sizeBytes: asset.fileSize,
+    capturedAt: new Date().toISOString(),
   }
 }

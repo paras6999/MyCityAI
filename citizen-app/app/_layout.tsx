@@ -20,8 +20,11 @@ function Providers() {
   useEffect(() => {
     if (Platform.OS === 'web') return
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      const id = response.notification.request.content.data?.complaint_id
-      if (typeof id === 'string' && /^\d+$/.test(id)) router.push({ pathname: '/complaint/[id]', params: { id } })
+      // data values are always strings. Types: complaint_status, feedback_request, announcement.
+      const data = response.notification.request.content.data ?? {}
+      const id = data.complaint_id
+      if (data.type === 'announcement') router.push('/announcements')
+      else if (typeof id === 'string' && /^\d+$/.test(id)) router.push({ pathname: '/complaint/[id]', params: { id } })
     })
     return () => subscription.remove()
   }, [router])
