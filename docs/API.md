@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.7 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.8 (draft) · **Last updated:** 2026-10-02
 
 ---
 
@@ -280,7 +280,8 @@ Complaints also carry `resolved_at` (time of the last resolution, `null` otherwi
 ```
 - `title` / `message` always contain `en`; `mr` / `hi` may be `null` until translated.
 - `source`: `staff` · `police_bridge` · `system`.
-- `recurrence`: `null` or `{ "rule": "daily" | "weekly", "days": ["mon","tue"], "time": "06:00" }`.
+- `status`: `published` or `draft` (AI draft waiting for approval — never shown to citizens).
+- `recurrence`: `null` or `{ "rule": "daily" | "weekly", "days": ["mon","tue"], "time": "06:00" }` — a schedule to display (e.g. daily water timetable); it does not re-send notifications.
 - `linked_categories`: while active, new complaints in these categories from these wards get an automatic reply.
 
 ---
@@ -546,7 +547,7 @@ Backend file: `routes/announcements.py`
 
 | Method | Path | Role | Purpose |
 |---|---|---|---|
-| `GET` | `/announcements?ward_id=12&lang=mr&active=true&page=` | citizen, staff | Feed (citizens: own ward + city-wide only) |
+| `GET` | `/announcements?ward_id=12&active=true&page=` | citizen, staff | Feed. Citizens: own ward (or `ward_id`) + city-wide, published only, emergency first. Staff: their scope incl. drafts. `active=false` adds expired / scheduled ones. All languages are always returned — the app picks `title[lang] ?? title.en`. |
 | `GET` | `/announcements/{id}` | citizen, staff | One announcement |
 | `POST` | `/announcements` | officer, ward_rep, mayor | Create |
 | `PATCH` | `/announcements/{id}` | author, mayor | Edit |
@@ -570,14 +571,18 @@ Backend file: `routes/announcements.py`
   "auto_translate": true
 }
 ```
-Permission limits: officer → own department only · ward_rep → own ward only · `city_wide: true` → mayor only.
-→ `201` `Announcement` (translations filled asynchronously when `auto_translate` is true).
+Permission limits: officer → `department` must be their own · ward_rep → `ward_ids` must be exactly `[own ward]` · `city_wide: true` → mayor/admin only (`403` otherwise). Either `ward_ids` or `city_wide` is required (`400`).
+→ `201` `Announcement`. With `auto_translate` and a Gemini key, `mr` / `hi` are filled immediately; otherwise they stay `null`.
+`important` and `emergency` announcements push to citizens of the covered wards (city-wide: all citizens), each in their own language (`type: "announcement"`, see §10.2). `general` ones only appear in the feed.
+Edit / delete: the author or the mayor/admin. Errors: `404 ANNOUNCEMENT_NOT_FOUND`, `409 ALREADY_PUBLISHED` (publishing twice).
 
 **`POST /announcements/draft`**
 ```json
 { "text": "pipeline repair ward 12, water 2 hrs late, new time 8-10", "department": "water", "ward_ids": [12] }
 ```
-→ `201` `Announcement` with `ai_drafted: true` (not visible to citizens until published).
+→ `201` `Announcement` with `status: "draft"` (not visible to citizens until `POST /{id}/publish`). `ai_drafted: true` when Gemini wrote it; without Gemini the note itself becomes the message (`ai_drafted: false`).
+
+**Auto-reply:** while an announcement is active, a new complaint whose category is in its `linked_categories` from a covered ward gets a timeline event `auto_reply` with the announcement text (in the complaint's language), and `POST /citizen/complaints/analyze` returns it as `active_announcement` so the app can show it before submitting. The complaint is still created.
 
 ---
 
@@ -640,7 +645,7 @@ Close codes: `4401` = token missing/invalid/expired → refresh the token and re
 | `complaint.updated` | Status / assignment / priority changed |
 | `complaint.escalated` | Escalated to my level *(from Phase 7)* |
 | `complaint.feedback` | Citizen confirmed or reopened |
-| `announcement.published` | New announcement *(from Phase 6)* |
+| `announcement.published` | New announcement in my department / ward |
 | `suggestion.created` | New AI suggestion *(from Phase 6)* |
 | `insight.updated` | New bridge statistics arrived *(from Phase 9)* |
 
@@ -738,6 +743,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.8 | 2026-10-05 | Announcements implemented: feed rules (no `lang` param — all languages returned), drafts + publish, per-language pushes, auto-reply via `linked_categories`, `/citizen/home` announcements | Paras · *Friend: pending* |
 | 0.1.7 | 2026-10-05 | **Live photo rules** (§5.6): camera-only, geotagged, ≤ 15 min old; new form fields on complaint submit/analyze/proof, `photo_check` in responses, `PHOTO_NOT_LIVE` error; EXIF stripped before storing | Paras · *Friend: pending* |
 | 0.1.6 | 2026-10-02 | Resolution proof with AI check (`proof.reason/method`, `ai_verified` may be `null`), `resolved_at`, feedback rules, auto-close 72 h, `reopened → in_progress` allowed | Paras · *Friend: pending* |
 | 0.1.5 | 2026-10-02 | Local YOLO detection: `ai.model` adds `"yolo"`, new `ai.detections` (boxes) in complaints and the analyze response | Paras · *Friend: pending* |

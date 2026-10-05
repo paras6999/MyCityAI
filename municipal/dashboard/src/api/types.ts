@@ -223,3 +223,42 @@ export interface ComplaintUpdate {
   category?: Category
   department?: Department
 }
+
+/** API.md §3.9 */
+export type AnnouncementPriority = 'emergency' | 'important' | 'general'
+
+export interface Localized {
+  en: string
+  mr: string | null
+  hi: string | null
+}
+
+export interface Announcement {
+  id: number
+  title: Localized
+  message: Localized
+  priority: AnnouncementPriority
+  department: Department | null
+  ward_ids: number[]
+  city_wide: boolean
+  author: { id: number; name: string | null; role: Role } | null
+  source: 'staff' | 'police_bridge' | 'system'
+  ai_drafted: boolean
+  status: 'draft' | 'published'
+  valid_from: string
+  valid_until: string | null
+  recurrence: { rule: 'daily' | 'weekly'; days: string[]; time: string } | null
+  linked_categories: Category[]
+  created_at: string
+  published_at: string | null
+}
+
+/** Targeting shared by POST /announcements and /announcements/draft (API.md §7). */
+export interface AnnouncementTarget {
+  priority: AnnouncementPriority
+  department?: Department | null
+  ward_ids: number[]
+  city_wide: boolean
+  valid_until?: string | null
+  linked_categories: Category[]
+}

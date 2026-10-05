@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 
+import bcrypt
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -14,6 +15,15 @@ from app.seed import seed
 
 SEED_PASSWORD = get_settings().seed_staff_password
 DEV_OTP = get_settings().dev_otp
+
+
+_real_gensalt = bcrypt.gensalt
+
+
+@pytest.fixture(autouse=True)
+def fast_password_hashing(monkeypatch):
+    """bcrypt's production cost (12 rounds) makes every login slow; tests use the minimum."""
+    monkeypatch.setattr("app.core.security.bcrypt.gensalt", lambda: _real_gensalt(4))
 
 
 @pytest.fixture(autouse=True)

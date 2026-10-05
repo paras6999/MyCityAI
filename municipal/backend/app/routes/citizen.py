@@ -23,8 +23,8 @@ from app.schemas.complaint import (
     Status,
     TimelineEventOut,
 )
+from app.services import announcements, live_photo
 from app.services import complaints as service
-from app.services import live_photo
 from app.services.media import mime_for, read_image, save_complaint_photo
 from app.services.realtime import hub
 
@@ -75,6 +75,9 @@ def analyze_photo(
         lng=lng,
     )
     nearby = nearby_open_complaints(db, triage.category, lat, lng)
+    explained = announcements.explaining(
+        db, triage.category, service.nearest_ward_id(db, lat, lng) or user.ward_id
+    )
     return AnalyzeOut(
         suggested_category=triage.category,
         department=triage.department,
@@ -94,6 +97,9 @@ def analyze_photo(
             )
             for c in nearby[:5]
         ],
+        active_announcement=(
+            announcements.to_out(explained).model_dump(mode="json") if explained else None
+        ),
     )
 
 
@@ -153,6 +159,16 @@ def submit_complaint(
     original = db.get(Complaint, triage.duplicate_id) if triage.duplicate_id else None
     if original is not None:
         service.merge_into(db, complaint, original)
+    else:
+        # e.g. "no water" during an announced shutdown: tell the citizen right away.
+        explained = announcements.explaining(db, complaint.category, complaint.ward_id)
+        if explained is not None:
+            language = complaint.language
+            note = (
+                f"{announcements.text_in(explained.title, language)}: "
+                f"{announcements.text_in(explained.message, language)}"
+            )
+            service.add_event(db, complaint, "auto_reply", note=note)
     db.commit()
     db.refresh(complaint)
 
@@ -233,7 +249,7 @@ def give_feedback(complaint_id: int, body: FeedbackIn, db: DB, user: Citizen):
 
 @router.get("/home")
 def home(db: DB, user: Citizen) -> dict:
-    """Home screen summary (API.md §5.5). Announcements arrive in Phase 6."""
+    """Home screen summary (API.md §5.5)."""
     recent = db.scalars(
         select(Complaint)
         .where(Complaint.reporter_id == user.id)
@@ -244,6 +260,9 @@ def home(db: DB, user: Citizen) -> dict:
     return {
         "open_complaints": service.count_open_for_reporter(db, user.id),
         "recent_complaints": [service.to_citizen_out(c) for c in recent],
-        "announcements": [],
+        "announcements": [
+            announcements.to_out(a).model_dump(mode="json")
+            for a in announcements.for_ward(db, user.ward_id)[:5]
+        ],
         "ward": {"id": ward.id, "number": ward.number, "name": ward.name} if ward else None,
     }

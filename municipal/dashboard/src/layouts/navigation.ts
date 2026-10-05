@@ -28,9 +28,9 @@ export interface NavItem {
 // Sidebar items per role, from docs/Design.md §8.
 export const NAVIGATION: Record<StaffRole, NavItem[]> = {
   officer: [
-    { key: 'myComplaints', icon: ClipboardList, path: '/officer' },
+    { key: 'myComplaints', icon: ClipboardList, path: '/officer', end: true },
     { key: 'mapView', icon: Map },
-    { key: 'announcements', icon: Megaphone },
+    { key: 'announcements', icon: Megaphone, path: '/officer/announcements' },
     { key: 'escalations', icon: AlertTriangle },
     { key: 'performance', icon: BarChart3 },
     { key: 'infraInsights', icon: Sparkles },
@@ -39,16 +39,16 @@ export const NAVIGATION: Record<StaffRole, NavItem[]> = {
     { key: 'wardOverview', icon: Home, path: '/ward', end: true },
     { key: 'escalations', icon: AlertTriangle },
     { key: 'allComplaints', icon: ClipboardList, path: '/ward/complaints' },
-    { key: 'postAnnouncement', icon: Megaphone },
+    { key: 'postAnnouncement', icon: Megaphone, path: '/ward/announcements' },
     { key: 'infraInsights', icon: Sparkles },
   ],
   mayor: [
-    { key: 'cityOverview', icon: Gauge, path: '/mayor' },
+    { key: 'cityOverview', icon: Gauge, path: '/mayor', end: true },
     { key: 'wardHeatmap', icon: Map },
     { key: 'departments', icon: Building },
     { key: 'finalEscalations', icon: AlertTriangle },
     { key: 'infraInsights', icon: Sparkles },
-    { key: 'cityAnnouncement', icon: Megaphone },
+    { key: 'cityAnnouncement', icon: Megaphone, path: '/mayor/announcements' },
   ],
   admin: [
     { key: 'users', icon: Users, path: '/admin' },

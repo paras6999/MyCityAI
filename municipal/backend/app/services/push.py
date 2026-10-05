@@ -12,6 +12,7 @@ from app.core.db import SessionLocal
 from app.models import Complaint, DeviceToken, User
 
 logger = logging.getLogger(__name__)
+EXPO_BATCH = 100
 
 # Short status messages in the citizen's language. {code} = complaint code.
 STATUS_MESSAGES: dict[str, dict[str, str]] = {
@@ -101,8 +102,10 @@ def deliver(push: Push) -> None:
     if not get_settings().push_enabled:
         logger.info("Push disabled; would send %r to %d device(s)", push.body, len(messages))
         return
+    tickets: list[dict] = []
     try:
-        tickets = send_expo(messages)
+        for start in range(0, len(messages), EXPO_BATCH):  # Expo accepts 100 per request
+            tickets += send_expo(messages[start : start + EXPO_BATCH])
     except Exception:
         logger.exception("Expo push request failed")
         return
