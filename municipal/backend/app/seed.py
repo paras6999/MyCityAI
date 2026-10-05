@@ -181,6 +181,7 @@ def seed_history(db: Session) -> int:
     wards = list(db.scalars(select(Ward)))
     # Some wards / departments are faster than others, so the heatmap and ranking differ.
     ward_speed = {w.id: rng.uniform(0.6, 1.6) for w in wards}
+    officers = {u.department: u for u in db.scalars(select(User).where(User.role == "officer"))}
     categories = [c for c in load_constants()["categories"] if c != "other"]
 
     for _ in range(HISTORY_SIZE):
@@ -199,6 +200,15 @@ def seed_history(db: Session) -> int:
         complaint.priority_score = rng.randint(15, 60)
         if rng.random() < 0.06:
             complaint.status = "rejected"
+            continue
+        officer = officers.get(complaint.department)
+        if officer and rng.random() < (ward_speed[ward.id] - 1.0) * 0.6:
+            # Slow wards keep a backlog: stuck for weeks, already with the mayor.
+            complaint.status = "in_progress"
+            complaint.assigned_to_id = officer.id
+            complaint.sla_breached_at = created + timedelta(hours=complaint.sla_hours)
+            complaint.sla_due_at = complaint.sla_breached_at + timedelta(hours=48)
+            complaint.escalation_level = 2
             continue
         hours = complaint.sla_hours * ward_speed[ward.id] * rng.uniform(0.3, 1.3)
         complaint.status = "closed"
