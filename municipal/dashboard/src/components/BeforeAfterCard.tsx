@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { mediaUrl } from '../api/complaints'
 import type { Complaint } from '../api/types'
 import { formatDateTime } from '../lib/format'
+import { PhotoCheckBadge } from './PhotoCheckBadge'
 
 /** Before/after photos with the AI verdict, plus the citizen's feedback when given. */
 export function BeforeAfterCard({ complaint }: { complaint: Complaint }) {
@@ -56,6 +57,7 @@ export function BeforeAfterCard({ complaint }: { complaint: Complaint }) {
         </span>
       </p>
       {proof.note && <p className="mt-1 text-sm text-muted">“{proof.note}”</p>}
+      <PhotoCheckBadge check={proof.photo_check} />
 
       <div className="mt-4 border-t border-neutral-bg pt-3">
         <h3 className="text-xs font-medium uppercase tracking-wide text-muted">{t('feedback.title')}</h3>

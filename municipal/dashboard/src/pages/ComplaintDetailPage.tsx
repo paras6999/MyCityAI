@@ -12,6 +12,7 @@ import { BeforeAfterCard } from '../components/BeforeAfterCard'
 import { ComplaintActions } from '../components/ComplaintActions'
 import { ComplaintMap } from '../components/ComplaintMap'
 import { DetectionPhoto } from '../components/DetectionPhoto'
+import { PhotoCheckBadge } from '../components/PhotoCheckBadge'
 import { PriorityBadge } from '../components/PriorityBadge'
 import { SlaLabel } from '../components/SlaLabel'
 import { StatusChip } from '../components/StatusChip'
@@ -113,11 +114,14 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
         <div className="space-y-4">
           <Card>
             {photo ? (
-              <DetectionPhoto
-                src={photo}
-                alt={t('detail.photoAlt', { category: t(`category.${c.category}`) })}
-                detections={c.ai?.detections ?? []}
-              />
+              <>
+                <DetectionPhoto
+                  src={photo}
+                  alt={t('detail.photoAlt', { category: t(`category.${c.category}`) })}
+                  detections={c.ai?.detections ?? []}
+                />
+                <PhotoCheckBadge check={c.photo_check} />
+              </>
             ) : (
               <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg bg-neutral-bg text-sm text-muted">
                 <ImageOff size={24} aria-hidden />

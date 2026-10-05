@@ -7,6 +7,7 @@ import { ApiError } from '../api/client'
 import { addComment, listOfficers, updateComplaint, uploadProof } from '../api/complaints'
 import type { Complaint, ComplaintUpdate } from '../api/types'
 import { STATUS_TRANSITIONS } from '../lib/constants'
+import { currentPosition } from '../lib/geolocation'
 import { useToast } from './toast/toastContext'
 
 /** Officer actions on one complaint. Ward reps (`canEdit=false`) can only comment. */
@@ -34,6 +35,11 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
   }
 
   function onError(err: unknown) {
+    if (err instanceof ApiError && err.code === 'PHOTO_NOT_LIVE' && Array.isArray(err.details)) {
+      const reasons = (err.details as { message: string }[]).map((d) => d.message).join(' · ')
+      setError(`${t('actions.proofNotLive')} ${reasons}`)
+      return
+    }
     setError(err instanceof ApiError ? err.message : t('actions.failed'))
   }
 
@@ -53,9 +59,23 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
     onError,
   })
 
+  const [locating, setLocating] = useState(false)
+
   const proof = useMutation({
-    mutationFn: ({ photo, note }: { photo: File; note: string }) =>
-      uploadProof(complaint.id, photo, note),
+    mutationFn: async ({ photo, note }: { photo: File; note: string }) => {
+      // Live photo rule (API.md §5.6): send where the officer is and when the photo was taken.
+      setLocating(true)
+      const position = await currentPosition()
+      setLocating(false)
+      if (!position) toast.show({ title: t('actions.uploadProof'), body: t('actions.proofNoLocation') })
+      return uploadProof(complaint.id, photo, note, {
+        lat: position?.lat,
+        lng: position?.lng,
+        accuracyM: position?.accuracyM,
+        // A photo just taken with the camera has lastModified = the moment of capture.
+        capturedAt: new Date(photo.lastModified).toISOString(),
+      })
+    },
     onSuccess: ({ verification }) => {
       setError(null)
       // The panel re-mounts after the update, so the verdict is shown as a toast.
@@ -179,6 +199,7 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
               name="after_photo"
               type="file"
               accept="image/jpeg,image/png"
+              capture="environment"
               required
               className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary-light file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary"
             />
@@ -201,7 +222,11 @@ export function ComplaintActions({ complaint, canEdit }: { complaint: Complaint;
             ) : (
               <Camera size={15} aria-hidden />
             )}
-            {proof.isPending ? t('actions.proofChecking') : t('actions.proofSubmit')}
+            {locating
+              ? t('actions.proofLocating')
+              : proof.isPending
+                ? t('actions.proofChecking')
+                : t('actions.proofSubmit')}
           </button>
         </form>
       )}

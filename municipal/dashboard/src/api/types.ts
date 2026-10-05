@@ -135,6 +135,16 @@ export interface AiInfo {
   detections: Detection[]
 }
 
+/** API.md §5.6 — was the photo taken with the camera on the spot, just now? */
+export interface PhotoCheck {
+  live: boolean
+  source: 'exif' | 'app' | 'none'
+  captured_at: string | null
+  accuracy_m: number | null
+  distance_m: number | null
+  problems: string[]
+}
+
 /** API.md §3.7 */
 export interface Proof {
   after_photo_url: string | null
@@ -144,6 +154,7 @@ export interface Proof {
   ai_confidence: number | null
   reason: string
   method: 'identical' | 'yolo' | 'gemini' | 'none'
+  photo_check: PhotoCheck | null
   uploaded_at: string
 }
 
@@ -158,7 +169,9 @@ export interface Feedback {
 /** API.md §6.5 */
 export interface ProofResponse {
   complaint: Complaint
-  verification: Pick<Proof, 'ai_verified' | 'ai_confidence' | 'reason' | 'method'>
+  verification: Pick<Proof, 'ai_verified' | 'ai_confidence' | 'reason' | 'method'> & {
+    photo_check: PhotoCheck
+  }
 }
 
 /** API.md §3.4 */
@@ -171,6 +184,7 @@ export interface Complaint {
   department: Department
   location: Location
   photo_url: string | null
+  photo_check: PhotoCheck | null
   status: Status
   priority_score: number
   priority_level: PriorityLevel

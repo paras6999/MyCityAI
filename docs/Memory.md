@@ -10,7 +10,7 @@
 | Item | Value |
 |---|---|
 | Current phase | **Phase 5 — Resolution proof & feedback** done on municipal side; next: Phase 6 announcements (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.6 (draft — friend still needs to approve 0.1.0–0.1.6) |
+| API contract version | 0.1.7 (draft — friend still needs to approve 0.1.0–0.1.7) |
 | Last updated | 2026-10-02 |
 
 ### Built so far
@@ -50,6 +50,7 @@
 | 2026-10-02 | App name: **MyCityAI** | Team decision (repo name) |
 | 2026-10-02 | AI = **Google Gemini** (photo+text in one call, embeddings); keyword fallback when unavailable; YOLO later | No trained YOLO models yet; one API covers vision + text |
 | 2026-10-02 | **Own trained YOLO model is the main photo AI** (free, offline); Gemini optional (summary/translation); free HF pothole model as placeholder until ours is trained | No API cost, works offline, better for viva (own model + metrics) |
+| 2026-10-05 | **Production photos must be live**: camera only, geotagged, ≤ 15 min old; proofs within 100 m of the complaint (`REQUIRE_LIVE_PHOTOS=true`; off in development) | Prevents fake complaints and fake repair proofs |
 | 2026-10-02 | V-JEPA 2 (Meta, MIT) planned for police CCTV action recognition (fight/accident) in Phase 9 | YOLO sees objects, not actions |
 
 ## Open questions
@@ -58,6 +59,15 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-05 — Live photo rules (Phase 5b)
+- Branches `backend/phase5b-live-photos` and `dashboard/phase5b-live-photos`.
+- `app/services/live_photo.py`: reads EXIF GPS + capture time (Pillow), else app-reported GPS/accuracy/time; rules in API.md §5.6. Result stored as `photo_check`; EXIF stripped before saving.
+- `REQUIRE_LIVE_PHOTOS=false` in dev (record only) / `true` in production (`400 PHOTO_NOT_LIVE`).
+- Geotag at the complaint location now counts as "same place" for repair verification (scene matching only as fallback).
+- Dashboard proof upload: `capture="environment"` (phone camera), browser GPS + file time sent; badges show the check. Geolocation needs HTTPS in deployment.
+- Verified live in production mode: gallery/old photo → 400, photo GPS 2 km off → 400, live photo → 201; officer proof 2 km away → 400, at the spot (15 m) → accepted.
+- **Citizen app must**: camera only (`launchCameraAsync({exif:true})`), send `captured_at`, `location_accuracy_m`, `capture_source="camera"`.
+
 ### 2026-10-02 — Municipal Phase 5 (proof & feedback)
 - Branches `backend/phase5-proof` and `dashboard/phase5-proof`.
 - Verification order: identical photo → YOLO (problem seen before gone after) → Gemini before/after → "not checked" (resolve; citizen's confirmation is the check). `proof.ai_verified` = true / false / null.

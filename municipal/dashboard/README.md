@@ -42,6 +42,8 @@ Sign in with a seeded staff account (usernames listed in the [backend README](..
 | `/officer/complaints/:id` | officer | Detail: photo, map, timeline, assign / start work / reject / comment |
 | `/ward/complaints`, `/ward/complaints/:id` | ward rep | Same queue/detail for their ward; can only comment |
 
+Photos must be taken on the spot in production (API.md §5.6): on a phone the proof field opens the camera, and the dashboard sends the phone's GPS (browser geolocation — **needs HTTPS** when deployed). Each photo shows a "Taken on the spot" / "Not verified" badge.
+
 When a complaint is *In progress* the officer uploads an after-photo (Actions → Resolution proof). The AI verdict appears as a toast and in the **Before / after** card, together with the citizen's feedback.
 
 Use `python -m app.seed --demo` in the backend to get sample complaints.
