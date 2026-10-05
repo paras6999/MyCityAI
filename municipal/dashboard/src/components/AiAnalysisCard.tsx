@@ -1,4 +1,4 @@
-import { MapPinned, Sparkles } from 'lucide-react'
+import { Activity, MapPinned, Sparkles } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import type { AiInfo } from '../api/types'
@@ -27,6 +27,7 @@ export function AiAnalysisCard({ ai }: { ai: AiInfo }) {
       <p className="text-sm">{ai.summary ?? <span className="text-muted">{t('ai.noSummary')}</span>}</p>
 
       <dl className="mt-3 grid grid-cols-2 gap-3 text-xs">
+        {ai.category_confidence !== null && (
         <div>
           <dt className="text-muted">{t('ai.confidence')}</dt>
           <dd className="mt-1 flex items-center gap-2">
@@ -39,6 +40,7 @@ export function AiAnalysisCard({ ai }: { ai: AiInfo }) {
             <span className="font-semibold">{Math.round(confidence * 100)}%</span>
           </dd>
         </div>
+        )}
         {ai.severity !== null && (
           <div>
             <dt className="text-muted">{t('ai.severity')}</dt>
@@ -58,6 +60,13 @@ export function AiAnalysisCard({ ai }: { ai: AiInfo }) {
             ))}
           </div>
         </div>
+      )}
+
+      {(ai.forecast_risk ?? 0) > 0 && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-accent">
+          <Activity size={14} aria-hidden />
+          {t('ai.forecastRisk', { points: Math.round((ai.forecast_risk ?? 0) * 10) })}
+        </p>
       )}
 
       {ai.sensitive_location && (

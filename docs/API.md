@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.9 (draft) · **Last updated:** 2026-10-05
+**Version:** 0.1.10 (draft) · **Last updated:** 2026-10-05
 
 ---
 
@@ -216,7 +216,7 @@ Invalid transitions return `409 INVALID_STATUS_TRANSITION`.
 - `ai.model`: `"yolo"` when our local YOLO model detected objects in the photo, `"gemini"` when Google Gemini analysed it, `"keywords"` for the text-only fallback. Category priority: citizen's choice > YOLO > Gemini > keywords. `ai.summary` comes from Gemini only (else `null`).
 - `photo_check`: result of the live-photo rules (§5.6). `source`: `exif` (GPS stored in the photo), `app` (GPS reported by the app) or `none`. `problems` is empty when `live` is true.
 - `ai.detections`: objects found by YOLO — `label` (a category), `confidence`, `box` = `[x1, y1, x2, y2]` as fractions (0–1) of the photo's width/height, so apps can draw boxes at any size.
-- `priority_score` = AI severity (0–100) + boosts: +5 per merged duplicate (max +20), +15 near a school/hospital/bus stop etc., up to +15 as the SLA deadline approaches, up to +10 forecast risk (Phase 8). Capped at 100.
+- `priority_score` = AI severity (0–100) + boosts: +5 per merged duplicate (max +20), +15 near a school/hospital/bus stop etc., up to +15 as the SLA deadline approaches, up to +10 × `ai.forecast_risk` (Utilities agent, §6.10). Capped at 100.
 
 ### 3.5 `CitizenComplaint` (what the Citizen App sees)
 Same as `Complaint` **minus** `reporter`, `escalation_level`, `assigned_to.id` and all `ai` fields except `category_confidence` and `summary`. Citizens see their own complaints, plus any complaint their report was merged into (`merged_into_id`).
@@ -532,18 +532,61 @@ Scope as §6.1 (officer: department, ward rep: ward, mayor/admin: city); optiona
 ```
 
 ### 6.9 AI suggestions panel
-**`GET /staff/ai-suggestions`**
+Backend file: `routes/utilities.py` · Scope as §6.1 (officer: department, ward rep: ward, mayor/admin: all).
+
+**`GET /staff/ai-suggestions?status=open`** (`open` default · `dismissed` · `actioned` · `all`; newest first, max 50)
 ```json
 {
   "items": [
-    { "id": 77, "type": "announcement_draft", "title": "Draft announcement ready", "body": "Water supply in Ward 12 delayed by 2 hours...", "ref": { "announcement_id": 311 } },
-    { "id": 78, "type": "anomaly", "title": "Possible leak / theft in Ward 7", "body": "Night-time flow +38% above normal", "ref": { "ward_id": 7 } },
-    { "id": 79, "type": "auto_replies", "title": "Auto-replied 14 complaints", "body": "Linked to scheduled shutdown in Ward 5", "ref": { "announcement_id": 305 } }
+    {
+      "id": 78,
+      "type": "anomaly",
+      "title": "Possible leak / illegal connection in Ward 12 (Rajarampuri)",
+      "body": "Flow 38% above normal in 5 of the last 6 hours (sensor W12-FLOW). Extra flow when demand is low usually means a leak or an illegal connection.",
+      "department": "water",
+      "ward_id": 12,
+      "ref": { "sensor_id": 23, "ward_id": 12, "direction": "up", "deviation": 0.38, "since": "2026-10-05T10:00:00+00:00" },
+      "status": "open",
+      "created_at": "2026-10-05T15:02:11+00:00",
+      "updated_at": "2026-10-05T16:02:09+00:00"
+    }
   ]
 }
 ```
-`type`: `announcement_draft` · `anomaly` · `auto_replies` · `hotspot` · `escalation_risk`
-**`POST /staff/ai-suggestions/{id}/dismiss`** → `204`
+`type`: `anomaly` (implemented, Phase 8) · planned: `announcement_draft` · `auto_replies` · `hotspot` · `escalation_risk`
+Anomaly titles: water flow up → "Possible leak / illegal connection", water flow down → "Water supply drop", power load up → "Overload risk", power load down → "Possible power outage". While the problem continues, the same suggestion is updated (not duplicated).
+
+**`POST /staff/ai-suggestions/{id}/dismiss`** → `204` (any staff in scope)
+**`POST /staff/ai-suggestions/{id}/work-order`** → `201` `Complaint` with `source: "sensor"`, no reporter, at the sensor location (leak → `water_leakage`, supply drop → `no_water_supply`, power → `power_outage`), `ai.forecast_risk: 1`. The suggestion becomes `actioned` and `ref.complaint_id` is set. Officer / mayor / admin only (ward rep `403`); `409 SUGGESTION_CLOSED` if already handled.
+
+### 6.10 Utilities: sensors and forecast
+One water flow (`W<ward>-FLOW`, m3/h, department `water`) and one power load (`P<ward>-LOAD`, kW, `electricity`) sensor per ward — simulated in the prototype (`python -m app.simulate_sensors`).
+
+**`GET /staff/utilities/sensors?kind=&ward_id=`** (scope as §6.1)
+```json
+{ "items": [ { "id": 23, "code": "W12-FLOW", "name": "Water flow · Ward 12 Rajarampuri", "kind": "water_flow", "unit": "m3/h", "department": "water", "ward_id": 12, "lat": 16.697, "lng": 74.253, "capacity": 312.4, "last_value": 141.2, "last_ts": "2026-10-05T16:00:00+00:00", "status": "anomaly", "forecast_peak": 233.0, "capacity_risk": 0.0 } ] }
+```
+`status`: `normal` · `anomaly` (open anomaly suggestion) · `no_data`. `capacity_risk` (0–1): 0 below 85 % of capacity, 1 at capacity.
+
+**`GET /staff/utilities/sensors/{id}?hours=168`** (24 – 504)
+```json
+{
+  "sensor": { "...Sensor..." },
+  "readings": [ { "ts": "2026-10-05T16:00:00+00:00", "value": 141.2, "expected": 102.5 } ],
+  "forecast": { "method": "lstm", "points": [ { "ts": "2026-10-05T17:00:00+00:00", "value": 118.0 } ] }
+}
+```
+`expected` = normal value for that hour (average of the same hour in previous weeks). `forecast.method`: `lstm` (trained model, ml/forecasting) or `seasonal` (fallback). 24 hourly points.
+
+**Forecast risk → priority:** for new water / electricity complaints, `ai.forecast_risk` = 1 while an anomaly is open for that ward and department, otherwise the ward sensor's `capacity_risk`. Adds up to +10 to `priority_score` (§3.4).
+
+### 6.11 Sensor readings (machine to machine)
+**`POST /sensors/readings`** — header `X-Sensor-Key: <SENSOR_API_KEY>` (no user login; `401 INVALID_SENSOR_KEY`)
+```json
+{ "readings": [ { "sensor": "W12-FLOW", "ts": "2026-10-05T16:00:00+05:30", "value": 141.2 } ] }
+```
+Hourly values (`ts` = start of the hour, rounded down; sending the same hour again overwrites it). Max 5000 per request. Unknown code → `400 UNKNOWN_SENSOR`.
+→ `{ "stored": 1, "suggestions": [78] }` — the Utilities agent checks every sensor that got data (Isolation Forest on the deviation from normal over the last 6 hours) and returns the suggestions it created or updated. Dashboards get WS `suggestion.created`.
 
 ---
 
@@ -652,6 +695,7 @@ Close codes: `4401` = token missing/invalid/expired → refresh the token and re
 | `complaint.created` | New complaint in my scope |
 | `complaint.updated` | Status / assignment / priority changed |
 | `complaint.escalated` | Escalated one level (automatic or manual); `data.escalation_level` is the new level |
+| `suggestion.created` | AI suggestion created or updated (`data` = suggestion §6.9), same scope rules |
 | `complaint.reminder` | A ward rep / mayor sent a reminder (shown to officers of that department) |
 | `complaint.feedback` | Citizen confirmed or reopened |
 | `announcement.published` | New announcement in my department / ward |
@@ -752,6 +796,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.10 | 2026-10-05 | Utilities agent: `GET /staff/ai-suggestions` real fields (`department`, `ward_id`, `status`, timestamps), `work-order`, `/staff/utilities/sensors*`, `POST /sensors/readings`, `ai.forecast_risk`, WS `suggestion.created` | Paras · *Friend: not affected* |
 | 0.1.9 | 2026-10-05 | Escalation implemented (automatic + manual, errors, `reminder` event, `escalated` filter), summary fields (`resolution_rate`, department `total/overdue`, ward `lat/lng/total/overdue/escalated`), public stats `pending` / `generated_at`, WS `complaint.reminder` | Paras · *Friend: pending* |
 | 0.1.8 | 2026-10-05 | Announcements implemented: feed rules (no `lang` param — all languages returned), drafts + publish, per-language pushes, auto-reply via `linked_categories`, `/citizen/home` announcements | Paras · *Friend: pending* |
 | 0.1.7 | 2026-10-05 | **Live photo rules** (§5.6): camera-only, geotagged, ≤ 15 min old; new form fields on complaint submit/analyze/proof, `photo_check` in responses, `PHOTO_NOT_LIVE` error; EXIF stripped before storing | Paras · *Friend: pending* |

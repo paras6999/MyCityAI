@@ -45,7 +45,8 @@
     "cityAnnouncement": "City Announcement",
     "users": "Users",
     "wards": "Wards",
-    "slaSettings": "SLA Settings"
+    "slaSettings": "SLA Settings",
+    "utilities": "Utilities"
   },
   "home": {
     "title": {
@@ -243,7 +244,8 @@
     "newComplaint": "New complaint: {{category}}",
     "escalated": "Escalated to you: {{category}}",
     "escalatedAway": "Escalated above you: {{category}}",
-    "reminder": "Reminder from the ward / mayor: {{category}}"
+    "reminder": "Reminder from the ward / mayor: {{category}}",
+    "suggestion": "AI: {{title}}"
   },
   "ai": {
     "title": "AI analysis",
@@ -259,7 +261,10 @@
     "yolo": "Our YOLO model",
     "yoloHint": "Detected in the photo by the local YOLO model (free, offline)",
     "showBoxes_one": "Show detected object",
-    "showBoxes_other": "Show {{count}} detected objects"
+    "showBoxes_other": "Show {{count}} detected objects",
+    "utilities": "Utilities agent",
+    "utilitiesHint": "Created from a sensor anomaly found by the Utilities agent",
+    "forecastRisk": "Utility risk in this ward: +{{points}} priority"
   },
   "proof": {
     "title": "Before / after",
@@ -417,5 +422,47 @@
     "topWards": "Best performing wards",
     "wardResolved": "{{count}} resolved · {{rate}}",
     "privacy": "Only totals are shown here — no names, phone numbers or photos."
+  },
+  "suggestions": {
+    "title": "AI suggestions ({{count}})",
+    "updated": "Updated {{time}}",
+    "dismiss": "Dismiss",
+    "viewSensor": "View sensor",
+    "workOrder": "Create work order",
+    "workOrderCreated": "Work order created",
+    "failed": "Could not update the suggestion"
+  },
+  "utilities": {
+    "subtitle": "Ward water and power meters (simulated). The Utilities agent compares every hour with the normal pattern and forecasts the next 24 hours.",
+    "noSensors": "No sensors for your department or ward.",
+    "noData": "No readings yet.",
+    "sensors": "Sensors ({{count}})",
+    "kind": {
+      "all": "All",
+      "water_flow": "Water flow",
+      "power_load": "Power load"
+    },
+    "status": {
+      "normal": "Normal",
+      "anomaly": "Anomaly",
+      "no_data": "No data"
+    },
+    "latest": "Latest reading",
+    "forecastPeak": "Peak next 24 h",
+    "capacity": "Capacity",
+    "capacityRisk": "Capacity risk",
+    "chartLabel": "Last 7 days and next 24 hours for {{name}}",
+    "legend": {
+      "actual": "Measured",
+      "expected": "Normal pattern",
+      "forecast": "Forecast ({{method}})",
+      "capacity": "Capacity {{value}} {{unit}}",
+      "anomaly": "Unusual period"
+    },
+    "method": {
+      "lstm": "LSTM",
+      "seasonal": "seasonal"
+    },
+    "hover": "{{time}}: {{value}} {{unit}} (normal {{expected}})"
   }
 }

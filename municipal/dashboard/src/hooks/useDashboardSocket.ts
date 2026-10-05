@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { getMe } from '../api/auth'
 import { API_URL } from '../api/client'
-import type { Complaint, StaffRole } from '../api/types'
+import type { AiSuggestion, Complaint, StaffRole } from '../api/types'
 import { tokenStorage } from '../auth/tokenStorage'
 import { useToast } from '../components/toast/toastContext'
 
@@ -55,6 +55,14 @@ export function useDashboardSocket(role: StaffRole): SocketStatus {
 
     function handleEvent(message: DashboardEvent) {
       const { t, toast, queryClient } = handlers.current
+      if (message.event === 'suggestion.created') {
+        const suggestion = message.data as unknown as AiSuggestion
+        queryClient.invalidateQueries({ queryKey: ['suggestions'] })
+        queryClient.invalidateQueries({ queryKey: ['sensors'] })
+        toast.show({ title: t('live.suggestion', { title: suggestion.title }), body: suggestion.body })
+        return
+      }
+      if (message.event.startsWith('announcement.')) return
       const complaint = message.data
       queryClient.invalidateQueries({ queryKey: ['complaints'] })
       queryClient.invalidateQueries({ queryKey: ['complaint', complaint.id] })

@@ -8,7 +8,7 @@ Notebooks and scripts for the AI models. **No datasets or weights in git** — s
 |---|---|---|
 | `vision/` | YOLOv8: potholes, garbage, waterlogging (complaints); accidents, congestion, crowds (police) | municipal + police backends |
 | `nlp/` | Complaint classifier (Sentence-BERT all-MiniLM-L6-v2) | municipal backend |
-| `forecasting/` | LSTM demand forecast, Isolation Forest anomalies (simulated sensors) | municipal backend |
+| `forecasting/` | LSTM demand forecast, Isolation Forest anomalies (simulated sensors) — see [forecasting/README.md](forecasting/README.md) | municipal backend |
 
 ## Datasets (add links)
 | Dataset | Link | Notes |

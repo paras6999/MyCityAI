@@ -88,9 +88,9 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** overdue complaint automatically appears in ward rep inbox, then mayor's.
 
 ## Phase 8 — Utilities agent (Week 12)
-- [ ] P / ML: simulated water & power sensor data generator
-- [ ] P / ML: LSTM demand forecast + Isolation Forest anomaly detection
-- [ ] P: anomalies → AI suggestions; forecast risk → priority score
+- [x] P / ML: simulated water & power sensor data generator
+- [x] P / ML: LSTM demand forecast + Isolation Forest anomaly detection
+- [x] P: anomalies → AI suggestions; forecast risk → priority score
 
 **Done when:** simulated leak creates an anomaly suggestion on the water officer dashboard.
 

@@ -9,18 +9,18 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 7 — Escalation, ward & mayor views** done on municipal side; next: Phase 8 utilities agent (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.9 (draft — friend still needs to approve 0.1.0–0.1.9) |
+| Current phase | **Phase 8 — Utilities agent** done on municipal side; next: Phase 9 police system + bridge (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.10 (draft — friend still needs to approve 0.1.0–0.1.9; 0.1.10 is staff/sensor only) |
 | Last updated | 2026-10-05 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. Phase 4b: local YOLO detection step (placeholder HF pothole model + COCO animals, registry `ml/vision/models.json`). Phase 5: proof upload with AI check (identical / YOLO before-after + same-place OpenCV match / Gemini / not checked), citizen confirm-rate-reopen, auto-close 72 h via in-process scheduler. Phase 6: announcements. Phase 7: escalation agent (scheduler), manual escalate / remind, `/staff/summary*`, public `/stats/public`, `seed --history`. 144 tests (+1 opt-in). |
-| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue, YOLO boxes drawn on the photo. Phase 5: proof upload form (verdict toast), before/after card with AI verdict, citizen feedback (stars, reopen reason). Phase 6: announcements page. Phase 7: ward rep overview (KPIs, escalation inbox, departments, categories), mayor overview + ward heatmap + department ranking + final escalations + all complaints, officer escalations + performance, escalate / remind buttons, public `/stats` page (no login). |
+| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. Phase 4b: local YOLO detection step (placeholder HF pothole model + COCO animals, registry `ml/vision/models.json`). Phase 5: proof upload with AI check (identical / YOLO before-after + same-place OpenCV match / Gemini / not checked), citizen confirm-rate-reopen, auto-close 72 h via in-process scheduler. Phase 6: announcements. Phase 7: escalation agent (scheduler), manual escalate / remind, `/staff/summary*`, public `/stats/public`, `seed --history`. Phase 8: sensors + readings + AI suggestions (migration 0009), `POST /sensors/readings` (X-Sensor-Key), Isolation Forest anomalies → suggestions → work orders, seasonal / hybrid-LSTM forecast, `ai.forecast_risk` in priority, `python -m app.simulate_sensors`. 158 tests (+1 opt-in). |
+| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue, YOLO boxes drawn on the photo. Phase 5: proof upload form (verdict toast), before/after card with AI verdict, citizen feedback (stars, reopen reason). Phase 6: announcements page. Phase 7: ward rep overview (KPIs, escalation inbox, departments, categories), mayor overview + ward heatmap + department ranking + final escalations + all complaints, officer escalations + performance, escalate / remind buttons, public `/stats` page (no login). Phase 8: AI suggestions panel (officer queue, overviews), Utilities page (sensor list, 7-day chart with normal pattern, 24 h forecast, capacity, anomaly band), work order button, live `suggestion.created` toasts. |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
-| `ml/` | Not started |
+| `ml/` | `vision/` (YOLO registry + training guide), `forecasting/` (hybrid LSTM training script + models.json) |
 | Docs | PRD, Architecture, API, Rules, Phases, Design written |
 
 ### Next steps
@@ -29,7 +29,7 @@
 3. Friend: Expo app skeleton with mock API (Phase 0)
 4. Friend: Phases 1–3 — OTP login, ward picker, Report screen, My Complaints + detail + timeline, push (`getExpoPushTokenAsync` → `POST /auth/device-token`)
 5. Paras: put a Gemini key in `municipal/backend/.env` (`GEMINI_API_KEY`) and try a real photo
-6. Paras: Phase 8 — utilities agent (simulated sensors, forecast, anomalies)
+6. Paras: Phase 9 — police system (separate server/DB), MediaMTX live view, alerts, evidence approval, anonymised bridge
 7. ML team: follow docs/ML.md — collect/label data, train `mycityai-yolov8s-v1` on Colab, then swap it into `ml/vision/models.json` (no code change)
 
 ## Team
@@ -64,6 +64,16 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-05 — Municipal Phase 8 (Utilities agent)
+- Branches `backend/phase8-utilities` and `dashboard/phase8-utilities`.
+- Simulated meters (`app/services/sensor_sim.py`, deterministic): 1 water-flow + 1 power-load sensor per ward. `python -m app.simulate_sensors setup|send|leak|export`. Capacity = 1.35 × normal daily peak (1.15 made ordinary Sundays look risky).
+- Anomalies: expected = same hour in previous 3 weeks; Isolation Forest on (deviation / sensor mean, hour sin/cos), trained per sensor on 21 days; ≥3 of the last 6 hours unusual and ≥20 % average deviation in one direction → `anomaly` suggestion (one per sensor+direction, updated while it continues). No false positives on 40 normal sensors.
+- Suggestion → "Create work order" → `source: "sensor"` complaint (`ai.model: "utilities"`, forecast risk 1 → +10 priority).
+- Forecast risk for new water/electricity complaints: 1 with an open anomaly in that ward, else capacity risk of the 24 h forecast peak.
+- **LSTM finding:** plain LSTM on simulated data MAPE 5.79 % vs 3-week seasonal 5.30 % (simulated data is periodic + random noise, so averaging is near-optimal). Changed to a hybrid (seasonal base + LSTM correction) and the backend only uses the LSTM if models.json shows it beats seasonal. Real meter data (weather, festivals) is where the LSTM should help.
+- Dependencies: `scikit-learn` added; `httpx` moved from dev to runtime (push already needed it). Sensor CSV and `.pt` not committed.
+- Verified live: normal send → 0 suggestions; `leak --ward 12` → suggestion on water officer queue; `leak --ward 7` while the page was open → live toast + sensor turned "Anomaly"; work order created and opened.
+
 ### 2026-10-05 — Municipal Phase 7 (escalation, ward & mayor views)
 - Branches `backend/phase7-escalation` and `dashboard/phase7-overviews`.
 - Escalation Agent = scheduler job (every 5 min, before auto-close): open + `sla_due_at` passed + level < 2 → level +1, new deadline +24 h (`escalation_extra_hours`), `escalated` timeline event, WS `complaint.escalated`. First miss stored in `sla_breached_at` (migration 0008) = SLA breach count.

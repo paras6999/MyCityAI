@@ -131,7 +131,9 @@ export interface AiInfo {
   summary: string | null
   severity: number | null
   sensitive_location: boolean
-  model: 'yolo' | 'gemini' | 'keywords' | null
+  /** 0-1 from the Utilities agent (adds up to +10 priority) */
+  forecast_risk?: number
+  model: 'yolo' | 'gemini' | 'keywords' | 'utilities' | null
   detections: Detection[]
 }
 
@@ -332,4 +334,52 @@ export interface PublicStats {
     resolution_rate: number
   }[]
   generated_at: string
+}
+
+/** API.md §6.10 */
+export type SensorKind = 'water_flow' | 'power_load'
+
+export interface Sensor {
+  id: number
+  code: string
+  name: string
+  kind: SensorKind
+  unit: string
+  department: Department
+  ward_id: number | null
+  lat: number
+  lng: number
+  capacity: number
+  last_value: number | null
+  last_ts: string | null
+  status: 'normal' | 'anomaly' | 'no_data'
+  forecast_peak: number | null
+  capacity_risk: number
+}
+
+export interface SensorDetail {
+  sensor: Sensor
+  readings: { ts: string; value: number; expected: number | null }[]
+  forecast: { method: 'lstm' | 'seasonal'; points: { ts: string; value: number }[] }
+}
+
+/** API.md §6.9 */
+export interface AiSuggestion {
+  id: number
+  type: 'anomaly' | 'announcement_draft' | 'auto_replies' | 'hotspot' | 'escalation_risk'
+  title: string
+  body: string
+  department: Department | null
+  ward_id: number | null
+  ref: {
+    sensor_id?: number
+    ward_id?: number
+    direction?: 'up' | 'down'
+    deviation?: number
+    since?: string
+    complaint_id?: number
+  }
+  status: 'open' | 'dismissed' | 'actioned'
+  created_at: string
+  updated_at: string
 }

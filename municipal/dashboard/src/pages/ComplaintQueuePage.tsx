@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Inbox, RefreshCw, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -26,6 +26,7 @@ export function ComplaintQueuePage({
   subtitleKey = 'queue.subtitle',
   fixed,
   wardFilter = false,
+  header,
 }: {
   titleKey: string
   detailBase: string
@@ -33,6 +34,8 @@ export function ComplaintQueuePage({
   fixed?: Partial<ComplaintFilters>
   /** Show a ward dropdown (city-wide roles). */
   wardFilter?: boolean
+  /** Shown between the title and the filters (e.g. the AI suggestions panel). */
+  header?: ReactNode
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -96,6 +99,8 @@ export function ComplaintQueuePage({
           {t('queue.refresh')}
         </button>
       </div>
+
+      {header && <div className="mt-5">{header}</div>}
 
       <div className="mt-5 flex flex-wrap gap-2 rounded-xl bg-surface p-3 shadow-sm">
         <label className="relative min-w-56 flex-1">

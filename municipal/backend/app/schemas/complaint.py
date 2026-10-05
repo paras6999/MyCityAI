@@ -51,8 +51,11 @@ class AiInfo(BaseModel):
     summary: str | None = None
     severity: int | None = None
     sensitive_location: bool = False
-    model: Literal["yolo", "gemini", "keywords"] | None = None
+    model: Literal["yolo", "gemini", "keywords", "utilities"] | None = None
     detections: list[DetectionOut] = []
+    # 0-1 from the Utilities agent (water / electricity only): open anomaly or forecast near
+    # capacity in this ward. Adds up to +10 to the priority score.
+    forecast_risk: float = 0.0
 
 
 class PersonRef(BaseModel):

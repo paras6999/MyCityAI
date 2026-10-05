@@ -11,8 +11,9 @@ pillow>=10
 bcrypt==4.*
 google-genai>=1.0,<3
 langgraph>=1.0,<2
+httpx==0.28.*  # Expo push, model downloads, sensor simulator
+scikit-learn>=1.5,<2  # Utilities agent: Isolation Forest anomalies
 
 # dev
 pytest==8.*
-httpx==0.28.*
 ruff==0.8.*
