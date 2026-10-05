@@ -145,6 +145,7 @@ def rescore(complaint: Complaint) -> None:
         duplicate_count=complaint.duplicate_count,
         sensitive_location=bool(ai.get("sensitive_location")),
         sla_elapsed_fraction=(_now() - created).total_seconds() / window,
+        forecast_risk=ai.get("forecast_risk") or 0.0,
     )
 
 

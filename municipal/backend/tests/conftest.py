@@ -32,6 +32,8 @@ def no_real_gemini(monkeypatch):
     monkeypatch.setattr("app.agents.gemini._client", lambda: None)
     # ...and never load YOLO models (slow); tests that need detections fake vision.detect.
     monkeypatch.setattr("app.agents.vision._load_models", lambda: [])
+    # ...and use the seasonal forecast (no PyTorch LSTM) so results do not depend on a model.
+    monkeypatch.setattr("app.agents.forecast._load_lstm", lambda: None)
     # ...and never start the background scheduler (it uses the real database).
     monkeypatch.setattr("app.services.scheduler.start", lambda: None)
 

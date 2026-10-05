@@ -68,3 +68,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+# --- ML data (exported sensor readings etc.) ---
+ml/**/*.csv

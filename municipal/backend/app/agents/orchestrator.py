@@ -9,7 +9,7 @@ embed           text embedding of the description, used to compare with nearby c
 find_duplicate  same-category open complaint within 50 m (and similar text, when available)
 score           priority 0-100 from severity, sensitive location and duplicates
 
-Later phases add nodes here (announcement check in Phase 6, forecast risk in Phase 8).
+The score step adds the Utilities agent's forecast risk for water / electricity issues.
 """
 
 from dataclasses import dataclass
@@ -46,6 +46,7 @@ class TriageState(TypedDict, total=False):
     embedding: list[float] | None
     duplicate_id: int | None
     duplicate_distance_m: float | None
+    forecast_risk: float
     priority: int
 
 
@@ -115,11 +116,22 @@ def check_duplicate(state: TriageState, config: RunnableConfig) -> dict[str, Any
     return {"duplicate_id": match.complaint.id, "duplicate_distance_m": round(match.distance_m, 1)}
 
 
-def score(state: TriageState) -> dict[str, Any]:
+def score(state: TriageState, config: RunnableConfig) -> dict[str, Any]:
+    from app.services import complaints, utilities  # services import agents; avoid a cycle
+
+    db: Session = config["configurable"]["db"]
+    risk = utilities.risk_for(
+        db,
+        category_info(state["category"])["department"],
+        complaints.nearest_ward_id(db, state["lat"], state["lng"]),
+    )
     return {
+        "forecast_risk": risk,
         "priority": compute_priority(
-            severity=state["severity"], sensitive_location=state["sensitive_location"]
-        )
+            severity=state["severity"],
+            sensitive_location=state["sensitive_location"],
+            forecast_risk=risk,
+        ),
     }
 
 
@@ -158,6 +170,7 @@ class Triage:
     duplicate_id: int | None
     duplicate_distance_m: float | None
     detections: list[vision.Detection]
+    forecast_risk: float = 0.0
 
     @property
     def ai_info(self) -> dict[str, Any]:
@@ -170,6 +183,7 @@ class Triage:
             "sensitive_location": self.sensitive_location,
             "model": self.model,
             "detections": [d.to_json() for d in self.detections],
+            "forecast_risk": self.forecast_risk,
         }
 
 
@@ -209,4 +223,5 @@ def run_triage(
         duplicate_id=state.get("duplicate_id"),
         duplicate_distance_m=state.get("duplicate_distance_m"),
         detections=state.get("detections") or [],
+        forecast_risk=state.get("forecast_risk", 0.0),
     )

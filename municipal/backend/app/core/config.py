@@ -53,7 +53,12 @@ class Settings(BaseSettings):
     # Cameras store local time in EXIF; used when the photo has no time-zone offset (IST)
     photo_utc_offset_minutes: int = 330
 
-    # Background jobs (auto-close resolved complaints; SLA escalation in Phase 7)
+    # Utilities agent: sensors send readings with this key (X-Sensor-Key header)
+    sensor_api_key: str = "dev-sensor-key"
+    # LSTM demand forecast (needs PyTorch + model from ml/forecasting); else seasonal forecast
+    forecast_lstm_enabled: bool = True
+
+    # Background jobs (auto-close resolved complaints, SLA escalation)
     scheduler_enabled: bool = True
     scheduler_interval_seconds: int = 300
 
