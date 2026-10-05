@@ -9,15 +9,15 @@
 ## Current status
 | Item | Value |
 |---|---|
-| Current phase | **Phase 6 — Announcements** done on municipal side; next: Phase 7 escalation, ward & mayor views (see [Phases.md](Phases.md)) |
-| API contract version | 0.1.8 (draft — friend still needs to approve 0.1.0–0.1.8) |
-| Last updated | 2026-10-02 |
+| Current phase | **Phase 7 — Escalation, ward & mayor views** done on municipal side; next: Phase 8 utilities agent (see [Phases.md](Phases.md)) |
+| API contract version | 0.1.9 (draft — friend still needs to approve 0.1.0–0.1.9) |
+| Last updated | 2026-10-05 |
 
 ### Built so far
 | Part | State |
 |---|---|
-| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. Phase 4b: local YOLO detection step (placeholder HF pothole model + COCO animals, registry `ml/vision/models.json`). Phase 5: proof upload with AI check (identical / YOLO before-after + same-place OpenCV match / Gemini / not checked), citizen confirm-rate-reopen, auto-close 72 h via in-process scheduler. 98 tests (+1 opt-in). |
-| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue, YOLO boxes drawn on the photo. Phase 5: proof upload form (verdict toast), before/after card with AI verdict, citizen feedback (stars, reopen reason). |
+| `municipal/backend` | Phase 2 done: auth (Phase 1) + complaints & timeline tables (migration 0002), photo upload to `MEDIA_DIR`, citizen submit/list/detail/timeline/home, staff queue (role scope, filters, sort, pagination), PATCH with transition/assignment rules, comments, staff list, nearest-ward detection, `seed --demo`. Phase 3: `WS /ws/dashboard` (role-scoped events), device tokens, Expo push on status change (citizen's language). Phase 4: LangGraph triage (Gemini photo+text, keyword fallback), priority score, duplicate merging (≤50 m), `/citizen/complaints/analyze`, `/staff/complaints/{id}/duplicates`. Phase 4b: local YOLO detection step (placeholder HF pothole model + COCO animals, registry `ml/vision/models.json`). Phase 5: proof upload with AI check (identical / YOLO before-after + same-place OpenCV match / Gemini / not checked), citizen confirm-rate-reopen, auto-close 72 h via in-process scheduler. Phase 6: announcements. Phase 7: escalation agent (scheduler), manual escalate / remind, `/staff/summary*`, public `/stats/public`, `seed --history`. 144 tests (+1 opt-in). |
+| `municipal/dashboard` | Phase 2 done: login + role routes (Phase 1), officer complaint queue (filters in URL, search, sort, pagination), complaint detail (photo, details, Leaflet map, timeline), assign / start work / reject / comment; ward rep "All Complaints" (read-only + comment). Phase 3: live updates via WebSocket (auto-refresh, "New complaint" toast, Live/Reconnecting indicator, auto-reconnect + token refresh). Phase 4: AI analysis card, duplicate reports list, merged banner, AI summary in queue, YOLO boxes drawn on the photo. Phase 5: proof upload form (verdict toast), before/after card with AI verdict, citizen feedback (stars, reopen reason). Phase 6: announcements page. Phase 7: ward rep overview (KPIs, escalation inbox, departments, categories), mayor overview + ward heatmap + department ranking + final escalations + all complaints, officer escalations + performance, escalate / remind buttons, public `/stats` page (no login). |
 | `citizen-app` | Not started (folder + README only) |
 | `police/*` | Not started — planned for Phase 9 |
 | `ml/` | Not started |
@@ -29,7 +29,7 @@
 3. Friend: Expo app skeleton with mock API (Phase 0)
 4. Friend: Phases 1–3 — OTP login, ward picker, Report screen, My Complaints + detail + timeline, push (`getExpoPushTokenAsync` → `POST /auth/device-token`)
 5. Paras: put a Gemini key in `municipal/backend/.env` (`GEMINI_API_KEY`) and try a real photo
-6. Paras: Phase 7 — escalation agent (SLA), ward rep & mayor dashboards, summary endpoints, public stats
+6. Paras: Phase 8 — utilities agent (simulated sensors, forecast, anomalies)
 7. ML team: follow docs/ML.md — collect/label data, train `mycityai-yolov8s-v1` on Colab, then swap it into `ml/vision/models.json` (no code change)
 
 ## Team
@@ -64,6 +64,16 @@
 - Who builds the police system in Phase 9?
 
 ## Log
+### 2026-10-05 — Municipal Phase 7 (escalation, ward & mayor views)
+- Branches `backend/phase7-escalation` and `dashboard/phase7-overviews`.
+- Escalation Agent = scheduler job (every 5 min, before auto-close): open + `sla_due_at` passed + level < 2 → level +1, new deadline +24 h (`escalation_extra_hours`), `escalated` timeline event, WS `complaint.escalated`. First miss stored in `sla_breached_at` (migration 0008) = SLA breach count.
+- Manual: officer escalates 0→1, ward rep →2 (reason required); ward rep / mayor "Remind department" (max 1/hour, staff-only `reminder` event, WS `complaint.reminder` toast for officers).
+- Summaries computed in Python from a few columns (same on SQLite / Postgres; fine for prototype size). Resolution rate excludes merged + rejected.
+- Public stats: no login, totals only. Dashboard page `/stats`, linked from login. Friend's "City Stats" tab uses the same endpoint.
+- `python -m app.seed --history`: 400 past complaints over 8 months; slow wards keep a stuck backlog at mayor level, so the heatmap shows 65–100 %.
+- Verified live: startup escalated 25 overdue demo complaints; a ward-12 complaint made overdue reached the ward rep inbox ~200 s later with KPIs updating live; ward rep reminded (2nd reminder blocked) and escalated to mayor; mayor overview shows 20 ward circles, ranking, final escalations; `/stats` fits 375 px.
+- Known: staff dashboard sidebar is fixed-width (desktop-first); phones only for `/stats`. Officer reminder toast covered by code, not live-tested with two sessions.
+
 ### 2026-10-05 — Municipal Phase 6 (announcements)
 - Branches `backend/phase6-announcements` and `dashboard/phase6-announcements`.
 - Table `announcements` (migration 0007). Scope rules: officer → own department, ward rep → own ward, city-wide → mayor/admin.

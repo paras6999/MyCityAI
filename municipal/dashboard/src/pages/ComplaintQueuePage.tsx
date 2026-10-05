@@ -6,6 +6,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 
 import { type ComplaintFilters, listComplaints } from '../api/complaints'
 import { CATEGORIES, type Category, STATUSES, type Status } from '../api/types'
+import { EscalationBadge } from '../components/EscalationBadge'
 import { PriorityBadge } from '../components/PriorityBadge'
 import { SlaLabel } from '../components/SlaLabel'
 import { StatusChip } from '../components/StatusChip'
@@ -16,13 +17,27 @@ const PAGE_SIZE = 20
 
 /**
  * AI-sorted complaint queue. The backend already limits results to what the user may see
- * (officer: own department, ward rep: own ward), so the same page serves both roles.
+ * (officer: own department, ward rep: own ward), so the same page serves every role.
+ * `fixed` filters turn it into a special list (e.g. the escalation inbox).
  */
-export function ComplaintQueuePage({ titleKey, detailBase }: { titleKey: string; detailBase: string }) {
+export function ComplaintQueuePage({
+  titleKey,
+  detailBase,
+  subtitleKey = 'queue.subtitle',
+  fixed,
+  wardFilter = false,
+}: {
+  titleKey: string
+  detailBase: string
+  subtitleKey?: string
+  fixed?: Partial<ComplaintFilters>
+  /** Show a ward dropdown (city-wide roles). */
+  wardFilter?: boolean
+}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const { byId: wards } = useWards()
+  const { byId: wards, wards: wardList } = useWards()
   const [params, setParams] = useSearchParams()
   const [search, setSearch] = useState(params.get('q') ?? '')
 
@@ -30,10 +45,12 @@ export function ComplaintQueuePage({ titleKey, detailBase }: { titleKey: string;
     status: (params.get('status') as Status) || undefined,
     category: (params.get('category') as Category) || undefined,
     sla: (params.get('sla') as ComplaintFilters['sla']) || undefined,
+    ward_id: params.get('ward_id') ? Number(params.get('ward_id')) : undefined,
     q: params.get('q') || undefined,
     sort: (params.get('sort') as ComplaintFilters['sort']) || 'priority',
     page: Number(params.get('page') ?? 1),
     page_size: PAGE_SIZE,
+    ...fixed,
   }
 
   function setFilter(key: string, value: string | null) {
@@ -68,7 +85,7 @@ export function ComplaintQueuePage({ titleKey, detailBase }: { titleKey: string;
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold">{t(titleKey)}</h1>
-          <p className="mt-1 text-sm text-muted">{t('queue.subtitle')}</p>
+          <p className="mt-1 text-sm text-muted">{t(subtitleKey)}</p>
         </div>
         <button
           type="button"
@@ -117,6 +134,21 @@ export function ComplaintQueuePage({ titleKey, detailBase }: { titleKey: string;
             </option>
           ))}
         </select>
+        {wardFilter && (
+          <select
+            aria-label={t('queue.ward')}
+            value={filters.ward_id ?? ''}
+            onChange={(event) => setFilter('ward_id', event.target.value || null)}
+            className={selectClass}
+          >
+            <option value="">{t('queue.allWards')}</option>
+            {wardList.map((ward) => (
+              <option key={ward.id} value={ward.id}>
+                {ward.number} · {ward.name}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           aria-label={t('queue.sla')}
           value={filters.sla ?? ''}
@@ -206,7 +238,10 @@ export function ComplaintQueuePage({ titleKey, detailBase }: { titleKey: string;
                       <SlaLabel dueAt={complaint.sla_due_at} status={complaint.status} />
                     </td>
                     <td className="px-4 py-3">
-                      <StatusChip status={complaint.status} />
+                      <div className="flex flex-wrap items-center gap-1">
+                        <StatusChip status={complaint.status} />
+                        <EscalationBadge level={complaint.escalation_level} />
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-muted">
                       {formatDateTime(complaint.created_at)}

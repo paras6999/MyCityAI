@@ -20,6 +20,9 @@ export interface ComplaintFilters {
   department?: Department
   ward_id?: number
   priority_level?: PriorityLevel
+  escalation_level?: number
+  /** Escalation inbox: open and above officer level. */
+  escalated?: boolean
   sla?: 'overdue' | 'due_soon'
   q?: string
   sort?: 'priority' | 'created_at' | 'sla_due_at'
@@ -81,6 +84,20 @@ export async function uploadProof(
 
 export async function addComment(id: number, note: string): Promise<Complaint> {
   const { data } = await api.post<Complaint>(`/staff/complaints/${id}/comments`, { note })
+  return data
+}
+
+/** Officer → ward rep, or ward rep → mayor (API.md §6.6). */
+export async function escalateComplaint(id: number, reason: string): Promise<Complaint> {
+  const { data } = await api.post<Complaint>(`/staff/complaints/${id}/escalate`, { reason })
+  return data
+}
+
+/** Ward rep / mayor nudges the department (max one per hour). */
+export async function remindDepartment(id: number, note: string): Promise<Complaint> {
+  const { data } = await api.post<Complaint>(`/staff/complaints/${id}/remind`, {
+    note: note || null,
+  })
   return data
 }
 

@@ -9,7 +9,17 @@ from fastapi.staticfiles import StaticFiles
 from app.agents import vision
 from app.core.config import API_VERSION, get_settings
 from app.core.errors import register_error_handlers
-from app.routes import announcements, auth, citizen, complaints_staff, health, wards, ws
+from app.routes import (
+    announcements,
+    auth,
+    citizen,
+    complaints_staff,
+    health,
+    stats,
+    summary,
+    wards,
+    ws,
+)
 from app.services import scheduler
 from app.services.media import MEDIA_URL_PREFIX, media_root
 from app.services.realtime import hub
@@ -44,7 +54,7 @@ def create_app() -> FastAPI:
     )
     register_error_handlers(app)
 
-    for module in (health, auth, wards, citizen, complaints_staff, announcements):
+    for module in (health, auth, wards, citizen, complaints_staff, summary, announcements, stats):
         app.include_router(module.router, prefix=API_PREFIX)
     app.include_router(ws.router)  # WS /ws/dashboard (no /api/v1 prefix, see API.md §10.1)
 

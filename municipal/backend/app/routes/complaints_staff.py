@@ -19,15 +19,17 @@ from app.schemas.complaint import (
     CommentCreate,
     ComplaintOut,
     ComplaintUpdate,
+    EscalateIn,
     PriorityLevel,
     ProofResponse,
+    RemindIn,
     Status,
     TimelineEventOut,
     VerificationOut,
 )
 from app.schemas.user import UserOut
 from app.services import complaints as service
-from app.services import live_photo, push
+from app.services import escalation, live_photo, push
 from app.services.media import media_root, mime_for, read_image, save_complaint_photo
 from app.services.realtime import hub
 
@@ -48,6 +50,7 @@ def list_complaints(
     ward_id: int | None = None,
     priority_level: PriorityLevel | None = None,
     escalation_level: Annotated[int | None, Query(ge=0, le=2)] = None,
+    escalated: bool | None = None,
     sla: service.SlaFilter | None = None,
     q: Annotated[str | None, Query(max_length=100)] = None,
     sort: service.SortOption = "priority",
@@ -63,6 +66,7 @@ def list_complaints(
         ward_id=ward_id,
         level=priority_level,
         escalation_level=escalation_level,
+        escalated=escalated,
         sla=sla,
         q=q,
     )
@@ -91,6 +95,15 @@ def get_timeline(complaint_id: int, db: DB, user: Staff):
 def publish_update(complaint: Complaint, out: ComplaintOut) -> None:
     hub.publish(
         "complaint.updated",
+        out.model_dump(mode="json"),
+        department=complaint.department,
+        ward_id=complaint.ward_id,
+    )
+
+
+def publish_escalated(complaint: Complaint, out: ComplaintOut) -> None:
+    hub.publish(
+        "complaint.escalated",
         out.model_dump(mode="json"),
         department=complaint.department,
         ward_id=complaint.ward_id,
@@ -223,6 +236,45 @@ def add_comment(complaint_id: int, body: CommentCreate, db: DB, user: Staff):
     db.commit()
     out = service.to_staff_out(complaint)
     publish_update(complaint, out)
+    return out
+
+
+@router.post("/complaints/{complaint_id}/escalate", response_model=ComplaintOut)
+def escalate_complaint(
+    complaint_id: int,
+    body: EscalateIn,
+    db: DB,
+    user: Annotated[User, Depends(require_role("officer", "ward_rep"))],
+):
+    """Send a complaint one level up: officer → ward rep → mayor (API.md §6.6)."""
+    complaint = service.get_for_staff(db, complaint_id, user)
+    escalation.escalate_manually(db, complaint, user, body.reason.strip())
+    db.commit()
+    db.refresh(complaint)
+    out = service.to_staff_out(complaint)
+    publish_escalated(complaint, out)
+    return out
+
+
+@router.post("/complaints/{complaint_id}/remind", response_model=ComplaintOut)
+def remind_department(
+    complaint_id: int,
+    body: RemindIn,
+    db: DB,
+    user: Annotated[User, Depends(require_role("ward_rep", "mayor", "admin"))],
+):
+    """Ward rep / mayor nudges the department; officers get a live alert."""
+    complaint = service.get_for_staff(db, complaint_id, user)
+    escalation.remind(db, complaint, user, (body.note or "").strip() or None)
+    db.commit()
+    db.refresh(complaint)
+    out = service.to_staff_out(complaint)
+    hub.publish(
+        "complaint.reminder",
+        out.model_dump(mode="json"),
+        department=complaint.department,
+        ward_id=complaint.ward_id,
+    )
     return out
 
 

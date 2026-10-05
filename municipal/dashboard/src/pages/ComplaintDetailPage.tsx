@@ -10,6 +10,7 @@ import { useAuth } from '../auth/useAuth'
 import { AiAnalysisCard } from '../components/AiAnalysisCard'
 import { BeforeAfterCard } from '../components/BeforeAfterCard'
 import { ComplaintActions } from '../components/ComplaintActions'
+import { EscalationBadge } from '../components/EscalationBadge'
 import { ComplaintMap } from '../components/ComplaintMap'
 import { DetectionPhoto } from '../components/DetectionPhoto'
 import { PhotoCheckBadge } from '../components/PhotoCheckBadge'
@@ -98,6 +99,7 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
         <h1 className="text-xl font-bold">{t(`category.${c.category}`)}</h1>
         <StatusChip status={c.status} />
         <PriorityBadge score={c.priority_score} level={c.priority_level} />
+        <EscalationBadge level={c.escalation_level} />
         <span className="font-mono text-xs text-muted">{c.code}</span>
       </div>
 
@@ -178,7 +180,7 @@ export function ComplaintDetailPage({ backTo }: { backTo: string }) {
         <div className="space-y-4">
           {c.ai && <AiAnalysisCard ai={c.ai} />}
           <Card title={t('detail.actions')}>
-            <ComplaintActions key={c.updated_at} complaint={c} canEdit={canEdit} />
+            <ComplaintActions key={c.updated_at} complaint={c} canEdit={canEdit} role={user?.role} />
           </Card>
           <Card title={t('detail.timeline')}>
             {timeline.data ? (

@@ -78,11 +78,11 @@ Owners: **P** = Paras (municipal backend + dashboard) · **F** = Friend (citizen
 **Done when:** officer posts water delay → citizens in that ward get push in their language; "no water" complaint gets auto-reply.
 
 ## Phase 7 — Escalation, ward & mayor views (Weeks 10–11)
-- [ ] P: escalation agent (scheduler) + manual escalate/remind
-- [ ] P: summary endpoints (`/staff/summary*`)
-- [ ] P: ward rep dashboard (KPIs, escalation inbox, department table, category chart)
-- [ ] P: mayor dashboard (city KPIs, ward heatmap, department ranking)
-- [ ] P: public stats endpoint + public stats page
+- [x] P: escalation agent (scheduler) + manual escalate/remind
+- [x] P: summary endpoints (`/staff/summary*`)
+- [x] P: ward rep dashboard (KPIs, escalation inbox, department table, category chart)
+- [x] P: mayor dashboard (city KPIs, ward heatmap, department ranking)
+- [x] P: public stats endpoint + public stats page
 - [ ] F: City Stats tab
 
 **Done when:** overdue complaint automatically appears in ward rep inbox, then mayor's.

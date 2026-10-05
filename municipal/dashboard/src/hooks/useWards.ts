@@ -6,5 +6,5 @@ import { getWards } from '../api/wards'
 export function useWards() {
   const query = useQuery({ queryKey: ['wards'], queryFn: getWards, staleTime: Infinity })
   const byId = new Map((query.data ?? []).map((ward) => [ward.id, ward]))
-  return { ...query, byId }
+  return { ...query, wards: query.data ?? [], byId }
 }

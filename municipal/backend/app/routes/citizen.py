@@ -223,8 +223,8 @@ def my_complaint_timeline(complaint_id: int, db: DB, user: Citizen):
         select(TimelineEvent)
         .where(
             TimelineEvent.complaint_id == complaint.id,
-            # Staff comments are internal notes; citizens see status changes and their notes.
-            TimelineEvent.type != "comment",
+            # Staff comments and reminders are internal; citizens see status changes and notes.
+            TimelineEvent.type.not_in(("comment", "reminder")),
         )
         .order_by(TimelineEvent.created_at, TimelineEvent.id)
     ).all()

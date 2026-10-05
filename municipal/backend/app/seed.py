@@ -3,6 +3,7 @@
 Run from municipal/backend:
     python -m app.seed          # wards + one staff account per role
     python -m app.seed --demo   # also a demo citizen and sample complaints
+    python -m app.seed --history   # ~8 months of closed complaints for the charts / stats
 
 Safe to run more than once (existing rows are left alone).
 All staff accounts get the password from SEED_STAFF_PASSWORD in .env.
@@ -16,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.constants import load_constants
 from app.core.db import SessionLocal
 from app.core.security import hash_secret
 from app.models import Complaint, User, Ward
@@ -157,9 +159,81 @@ def seed_demo(db: Session) -> int:
     return len(DEMO_COMPLAINTS)
 
 
+HISTORY_SIZE = 400
+HISTORY_DAYS = 240
+
+
+def seed_history(db: Session) -> int:
+    """Past complaints (closed, some late, some rejected) so the mayor dashboard and public
+    stats have something to show. Skipped if complaints older than 30 days already exist."""
+    now = datetime.now(UTC)
+    if db.scalar(
+        select(func.count(Complaint.id)).where(Complaint.created_at < now - timedelta(days=30))
+    ):
+        return 0
+    citizen = db.scalar(select(User).where(User.phone == DEMO_CITIZEN_PHONE))
+    if citizen is None:
+        citizen = User(phone=DEMO_CITIZEN_PHONE, name="Demo Citizen", role="citizen", language="en")
+        db.add(citizen)
+        db.flush()
+
+    rng = random.Random(7)
+    wards = list(db.scalars(select(Ward)))
+    # Some wards / departments are faster than others, so the heatmap and ranking differ.
+    ward_speed = {w.id: rng.uniform(0.6, 1.6) for w in wards}
+    officers = {u.department: u for u in db.scalars(select(User).where(User.role == "officer"))}
+    categories = [c for c in load_constants()["categories"] if c != "other"]
+
+    for _ in range(HISTORY_SIZE):
+        ward = rng.choice(wards)
+        created = now - timedelta(days=rng.uniform(31, HISTORY_DAYS), hours=rng.uniform(0, 24))
+        complaint = create_complaint(
+            db,
+            reporter=citizen,
+            category=rng.choice(categories),
+            lat=ward.center_lat + rng.uniform(-0.003, 0.003),
+            lng=ward.center_lng + rng.uniform(-0.003, 0.003),
+            description=None,
+            address=f"Near {ward.name}",
+            created_at=created,
+        )
+        complaint.priority_score = rng.randint(15, 60)
+        if rng.random() < 0.06:
+            complaint.status = "rejected"
+            continue
+        officer = officers.get(complaint.department)
+        if officer and rng.random() < (ward_speed[ward.id] - 1.0) * 0.6:
+            # Slow wards keep a backlog: stuck for weeks, already with the mayor.
+            complaint.status = "in_progress"
+            complaint.assigned_to_id = officer.id
+            complaint.sla_breached_at = created + timedelta(hours=complaint.sla_hours)
+            complaint.sla_due_at = complaint.sla_breached_at + timedelta(hours=48)
+            complaint.escalation_level = 2
+            continue
+        hours = complaint.sla_hours * ward_speed[ward.id] * rng.uniform(0.3, 1.3)
+        complaint.status = "closed"
+        complaint.resolved_at = created + timedelta(hours=hours)
+        complaint.updated_at = complaint.resolved_at
+        if hours > complaint.sla_hours:
+            complaint.sla_breached_at = created + timedelta(hours=complaint.sla_hours)
+            complaint.escalation_level = 1 if hours < complaint.sla_hours + 24 else 2
+        if rng.random() < 0.7:
+            rating = max(1, min(5, round(5.4 - ward_speed[ward.id] - rng.uniform(0, 1.2))))
+            complaint.feedback = {
+                "action": "confirm",
+                "rating": rating,
+                "comment": None,
+                "created_at": complaint.resolved_at.isoformat(),
+            }
+    db.commit()
+    return HISTORY_SIZE
+
+
 if __name__ == "__main__":
     with SessionLocal() as session:
         wards, users = seed(session)
         print(f"Seed complete: {wards} wards and {users} staff users added.")
         if "--demo" in sys.argv:
             print(f"Demo data: {seed_demo(session)} complaints added.")
+        if "--history" in sys.argv:
+            print(f"History: {seed_history(session)} past complaints added.")

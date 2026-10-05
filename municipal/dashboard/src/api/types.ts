@@ -262,3 +262,74 @@ export interface AnnouncementTarget {
   valid_until?: string | null
   linked_categories: Category[]
 }
+
+/** API.md §6.8 — GET /staff/summary */
+export interface SummaryKpis {
+  open: number
+  due_soon: number
+  overdue: number
+  resolved_this_week: number
+  avg_resolution_hours: number | null
+  resolution_rate: number
+  /** null for officers */
+  escalated_to_me: number | null
+  satisfaction_avg: number | null
+  duplicates_merged: number
+}
+
+export interface DepartmentSummary {
+  department: Department
+  total: number
+  open: number
+  overdue: number
+  resolved: number
+  resolution_rate: number
+  avg_resolution_hours: number | null
+  sla_breaches: number
+}
+
+export interface WardSummary {
+  ward_id: number
+  number: number
+  name: string
+  lat: number | null
+  lng: number | null
+  total: number
+  pending: number
+  overdue: number
+  escalated: number
+  resolved: number
+  resolution_rate: number
+}
+
+export interface CategoryCount {
+  category: Category
+  count: number
+}
+
+/** API.md §8 */
+export interface PublicStats {
+  period: string
+  total_complaints: number
+  resolved: number
+  pending: number
+  resolution_rate: number
+  avg_resolution_hours: number | null
+  satisfaction_avg: number | null
+  ratings_count: number
+  monthly: { month: string; received: number; resolved: number }[]
+  by_department: {
+    department: Department
+    total: number
+    resolution_rate: number
+    avg_resolution_hours: number | null
+  }[]
+  top_wards: {
+    ward_id: number
+    number: number
+    name: string
+    resolved: number
+    resolution_rate: number
+  }[]
+  generated_at: string
+}

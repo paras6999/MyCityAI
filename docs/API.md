@@ -3,7 +3,7 @@
 > **This file is the agreement between the Citizen App, the Municipal Dashboard and the backends.**
 > If code and this file disagree, this file wins. Change it only through a Pull Request approved by both owners (see [Rules.md](Rules.md#3-api-contract-rules)).
 
-**Version:** 0.1.8 (draft) · **Last updated:** 2026-10-02
+**Version:** 0.1.9 (draft) · **Last updated:** 2026-10-05
 
 ---
 
@@ -234,7 +234,9 @@ Same as `Complaint` **minus** `reporter`, `escalation_level`, `assigned_to.id` a
   "created_at": "2026-09-29T11:40:00+05:30"
 }
 ```
-`type`: `created` · `classified` · `merged` · `assigned` · `status_changed` · `escalated` · `proof_uploaded` · `proof_verified` · `feedback` · `reopened` · `comment` · `auto_reply`
+`type`: `created` · `classified` · `merged` · `assigned` · `status_changed` · `escalated` · `proof_uploaded` · `proof_verified` · `feedback` · `reopened` · `comment` · `auto_reply` · `reminder`
+
+`comment` and `reminder` are staff-only: the citizen timeline never contains them.
 
 ### 3.7 `Proof`
 ```json
@@ -446,7 +448,7 @@ Backend files: `routes/complaints_staff.py`, `routes/ward.py`, `routes/mayor.py`
 ### 6.2 Complaint queue
 **`GET /staff/complaints`**
 
-Query params (all optional): `status`, `category`, `department`, `ward_id`, `priority_level`, `escalation_level`, `sla` (`overdue` \| `due_soon`), `q` (text search), `sort` (`priority` default \| `created_at` \| `sla_due_at`), `page`, `page_size`
+Query params (all optional): `status`, `category`, `department`, `ward_id`, `priority_level`, `escalation_level`, `escalated` (`true` = escalation inbox: open and level ≥ 1), `sla` (`overdue` \| `due_soon`), `q` (text search), `sort` (`priority` default \| `created_at` \| `sla_due_at`), `page`, `page_size`
 
 → paginated `Complaint`. Without a `status` filter, `merged` reports are left out (they are listed under their original via §6.3 duplicates); use `status=merged` to see them.
 
@@ -487,10 +489,12 @@ Only while the complaint is `in_progress` (else `409`). The AI checks the after-
 | Method | Path | Body |
 |---|---|---|
 | `POST` | `/staff/complaints/{id}/comments` | `{ "note": "Material ordered" }` |
-| `POST` | `/staff/complaints/{id}/escalate` | `{ "reason": "Needs extra budget" }` (manual escalation, +1 level) |
-| `POST` | `/staff/complaints/{id}/remind` | `{}` (ward rep / mayor reminds the assigned officer) |
+| `POST` | `/staff/complaints/{id}/escalate` | `{ "reason": "Needs extra budget" }` — officer (level 0 → 1) or ward rep (→ 2). → `Complaint` |
+| `POST` | `/staff/complaints/{id}/remind` | `{ "note": "optional" }` — ward rep / mayor / admin nudges the department (live alert on officer dashboards, `reminder` timeline event). Max one per hour → else `429 REMINDED_RECENTLY`. → `Complaint` |
 
-Automatic escalation: when `sla_due_at` passes and status is not `resolved`/`closed`, the Escalation Agent raises `escalation_level` by 1 and sets a new deadline (24 h).
+Escalate errors: `409 ALREADY_ESCALATED` (already above your level), `409 ALREADY_AT_MAYOR`, `409 INVALID_STATUS_TRANSITION` (not open), `403` for mayor/admin (they are the top).
+
+Automatic escalation (scheduler, every 5 min): when `sla_due_at` passes and the complaint is still open (not `resolved` / `closed` / `rejected` / `merged`), the Escalation Agent raises `escalation_level` by 1 (max 2), adds an `escalated` timeline event and gives the new level `escalation_extra_hours` (24 h) as the new `sla_due_at`. The first missed deadline is remembered and counted as an SLA breach.
 
 ### 6.7 Staff list (for assignment)
 **`GET /staff/users?department=water&role=officer`** → `{ "items": [User] }`
@@ -504,21 +508,22 @@ Automatic escalation: when `sla_due_at` passes and status is not `resolved`/`clo
   "overdue": 3,
   "resolved_this_week": 64,
   "avg_resolution_hours": 21.4,
+  "resolution_rate": 0.86,
   "escalated_to_me": 5,
   "satisfaction_avg": 4.1,
   "duplicates_merged": 1127
 }
 ```
-Fields not relevant to a role are `null`.
+Scope as §6.1 (officer: department, ward rep: ward, mayor/admin: city); optional `?ward_id=`. `escalated_to_me` is `null` for officers (ward rep: open with level ≥ 1, mayor: open with level 2). `avg_resolution_hours` / `satisfaction_avg` are `null` when there is no data. `resolution_rate` = resolved or closed ÷ all (merged and rejected not counted).
 
-**`GET /staff/summary/departments?ward_id=`**
+**`GET /staff/summary/departments?ward_id=`** — sorted best resolution rate first (ranking)
 ```json
-{ "items": [ { "department": "water", "open": 6, "resolved": 58, "resolution_rate": 0.91, "avg_resolution_hours": 19, "sla_breaches": 8 } ] }
+{ "items": [ { "department": "water", "total": 64, "open": 6, "overdue": 1, "resolved": 58, "resolution_rate": 0.91, "avg_resolution_hours": 19.0, "sla_breaches": 8 } ] }
 ```
 
-**`GET /staff/summary/wards`** — mayor / admin (heatmap)
+**`GET /staff/summary/wards`** — mayor / admin only (heatmap); every ward, by number
 ```json
-{ "items": [ { "ward_id": 7, "number": 7, "name": "Mahadwar Road", "pending": 41, "resolved": 1215, "resolution_rate": 0.68 } ] }
+{ "items": [ { "ward_id": 7, "number": 7, "name": "Mahadwar Road", "lat": 16.6955, "lng": 74.2375, "total": 1256, "pending": 41, "overdue": 6, "escalated": 3, "resolved": 1215, "resolution_rate": 0.68 } ] }
 ```
 
 **`GET /staff/summary/categories?ward_id=`**
@@ -595,15 +600,18 @@ Backend file: `routes/stats.py` · **No login required** (Citizen App "City Stat
   "period": "2026",
   "total_complaints": 48905,
   "resolved": 42117,
+  "pending": 5893,
   "resolution_rate": 0.861,
   "avg_resolution_hours": 27,
   "satisfaction_avg": 4.0,
   "ratings_count": 31420,
   "monthly": [ { "month": "2026-09", "received": 6482, "resolved": 5391 } ],
-  "by_department": [ { "department": "water", "resolution_rate": 0.91 } ],
-  "top_wards": [ { "ward_id": 16, "name": "Tarabai Park", "resolved": 612, "resolution_rate": 0.95 } ]
+  "by_department": [ { "department": "water", "total": 6100, "resolution_rate": 0.91, "avg_resolution_hours": 19.0 } ],
+  "top_wards": [ { "ward_id": 16, "number": 16, "name": "Tarabai Park", "resolved": 612, "resolution_rate": 0.95 } ],
+  "generated_at": "2026-10-05T10:00:00+00:00"
 }
 ```
+Default `period`: the current year. Invalid period → `400`. Counts complaints created in the period (merged / rejected excluded); `monthly` lists every month of the period up to now (city time, IST). `top_wards`: best 5 by resolution rate. `avg_resolution_hours` / `satisfaction_avg` may be `null`.
 No personal data is ever returned by this endpoint.
 
 ---
@@ -643,7 +651,8 @@ Close codes: `4401` = token missing/invalid/expired → refresh the token and re
 |---|---|
 | `complaint.created` | New complaint in my scope |
 | `complaint.updated` | Status / assignment / priority changed |
-| `complaint.escalated` | Escalated to my level *(from Phase 7)* |
+| `complaint.escalated` | Escalated one level (automatic or manual); `data.escalation_level` is the new level |
+| `complaint.reminder` | A ward rep / mayor sent a reminder (shown to officers of that department) |
 | `complaint.feedback` | Citizen confirmed or reopened |
 | `announcement.published` | New announcement in my department / ward |
 | `suggestion.created` | New AI suggestion *(from Phase 6)* |
@@ -743,6 +752,7 @@ Alert model:
 |---|---|---|---|
 | 0.1.0 | 2026-10-02 | First draft | — |
 | 0.1.1 | 2026-10-02 | Added `GET /wards` (§4.4), OTP/login error codes, `type` in JWT payload | Paras · *Friend: pending* |
+| 0.1.9 | 2026-10-05 | Escalation implemented (automatic + manual, errors, `reminder` event, `escalated` filter), summary fields (`resolution_rate`, department `total/overdue`, ward `lat/lng/total/overdue/escalated`), public stats `pending` / `generated_at`, WS `complaint.reminder` | Paras · *Friend: pending* |
 | 0.1.8 | 2026-10-05 | Announcements implemented: feed rules (no `lang` param — all languages returned), drafts + publish, per-language pushes, auto-reply via `linked_categories`, `/citizen/home` announcements | Paras · *Friend: pending* |
 | 0.1.7 | 2026-10-05 | **Live photo rules** (§5.6): camera-only, geotagged, ≤ 15 min old; new form fields on complaint submit/analyze/proof, `photo_check` in responses, `PHOTO_NOT_LIVE` error; EXIF stripped before storing | Paras · *Friend: pending* |
 | 0.1.6 | 2026-10-02 | Resolution proof with AI check (`proof.reason/method`, `ai_verified` may be `null`), `resolved_at`, feedback rules, auto-close 72 h, `reopened → in_progress` allowed | Paras · *Friend: pending* |

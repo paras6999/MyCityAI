@@ -1,7 +1,7 @@
-import { Building2, CheckCircle2, LoaderCircle } from 'lucide-react'
+import { BarChart3, Building2, CheckCircle2, LoaderCircle } from 'lucide-react'
 import { type FormEvent, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/useAuth'
@@ -130,7 +130,15 @@ export function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-10 flex justify-center">
+          <Link
+            to="/stats"
+            className="mt-6 flex items-center justify-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+          >
+            <BarChart3 size={16} aria-hidden />
+            {t('login.publicStats')}
+          </Link>
+
+          <div className="mt-8 flex justify-center">
             <ApiStatus />
           </div>
         </div>
