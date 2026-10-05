@@ -1,0 +1,38 @@
+{
+  "_comment": "Demand forecast used by municipal/backend (app/agents/forecast.py). Copy the .pt file to municipal/backend/models/. Retrain with ml/forecasting/train_lstm.py.",
+  "models": [
+    {
+      "name": "demand-lstm-v1",
+      "file": "demand-lstm-v1.pt",
+      "sha256": "be58c5715e230c01d009f4cb867f36aea95220547abc2aa0feebcc3e6773496a",
+      "lookback_hours": 168,
+      "horizon_hours": 24,
+      "features": [
+        "value / mean(window)",
+        "sin(hour IST)",
+        "cos(hour IST)"
+      ],
+      "inputs": "x [1,168,3] and seasonal base [1,24], both / mean(window); output = base + correction",
+      "season_weeks": 3,
+      "trained_on": "readings.csv: 40 sensors, simulated (app/services/sensor_sim.py)",
+      "trained_at": "2026-10-05",
+      "test_metrics": {
+        "lstm": {
+          "rmse": 76.98,
+          "mae": 42.36,
+          "mape": 5.61
+        },
+        "seasonal": {
+          "rmse": 73.28,
+          "mae": 40.18,
+          "mape": 5.3
+        },
+        "naive": {
+          "rmse": 86.27,
+          "mae": 46.76,
+          "mape": 6.2
+        }
+      }
+    }
+  ]
+}
