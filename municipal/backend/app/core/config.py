@@ -10,8 +10,10 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     database_url: str = "postgresql+psycopg://mycity:mycity@localhost:5433/mycity_municipal"
-    # Comma-separated list, e.g. "http://localhost:5173,http://192.168.1.5:5173"
-    cors_origins: str = "http://localhost:5173"
+    # Browsers allowed to call the API: dashboard (Vite :5173) and the citizen app's web
+    # build (Expo :8081). Comma-separated; add LAN addresses, e.g. "http://192.168.1.5:8081".
+    # Phone apps (Expo Go / APK) are not browsers and do not need an entry.
+    cors_origins: str = "http://localhost:5173,http://localhost:8081"
 
     jwt_secret: str = "dev-only-secret-change-me-in-production-please"
     access_token_minutes: int = 60
