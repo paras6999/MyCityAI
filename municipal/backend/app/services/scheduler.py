@@ -1,4 +1,4 @@
-"""Periodic background jobs (auto-close now; SLA escalation joins in Phase 7).
+"""Periodic background jobs: SLA escalation and auto-close.
 
 Runs inside the API process: fine for one backend worker. With several workers, run the jobs
 in exactly one of them (or a separate process) to avoid doing the work twice.
@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.constants import limit
 from app.core.db import SessionLocal
 from app.services import complaints as service
+from app.services import escalation
 from app.services.realtime import hub
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,25 @@ def auto_close_job() -> int:
     return len(closed)
 
 
-JOBS = [auto_close_job]
+def escalation_job() -> int:
+    """Escalation Agent: complaints past their deadline move up one level."""
+    with SessionLocal() as db:
+        escalated = escalation.escalate_overdue(db)
+        db.commit()
+        for complaint in escalated:
+            db.refresh(complaint)
+            hub.publish(
+                "complaint.escalated",
+                service.to_staff_out(complaint).model_dump(mode="json"),
+                department=complaint.department,
+                ward_id=complaint.ward_id,
+            )
+    if escalated:
+        logger.info("Escalated %d overdue complaint(s)", len(escalated))
+    return len(escalated)
+
+
+JOBS = [escalation_job, auto_close_job]
 
 
 async def _run_forever(interval_seconds: int) -> None:

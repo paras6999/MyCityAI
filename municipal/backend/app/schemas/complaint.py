@@ -215,6 +215,18 @@ class CommentCreate(BaseModel):
     note: str = Field(min_length=1, max_length=1000)
 
 
+class EscalateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class RemindIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    note: str | None = Field(default=None, max_length=500)
+
+
 class DuplicateHint(BaseModel):
     id: int
     code: str

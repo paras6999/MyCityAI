@@ -210,6 +210,7 @@ def apply_staff_filters(
     ward_id: int | None = None,
     level: str | None = None,
     escalation_level: int | None = None,
+    escalated: bool | None = None,
     sla: SlaFilter | None = None,
     q: str | None = None,
 ) -> Select:
@@ -229,6 +230,9 @@ def apply_staff_filters(
         stmt = stmt.where(Complaint.priority_score.between(bounds["min"], bounds["max"]))
     if escalation_level is not None:
         stmt = stmt.where(Complaint.escalation_level == escalation_level)
+    if escalated:
+        # Escalation inbox: still open and above officer level.
+        stmt = stmt.where(Complaint.escalation_level >= 1, Complaint.status.not_in(SLA_STOPPED))
     if sla:
         now = _now()
         stmt = stmt.where(Complaint.status.not_in(SLA_STOPPED))

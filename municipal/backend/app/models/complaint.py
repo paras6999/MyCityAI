@@ -63,6 +63,8 @@ class Complaint(Base):
     sla_hours: Mapped[int] = mapped_column(Integer)
     sla_due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     escalation_level: Mapped[int] = mapped_column(Integer, default=0)
+    # First time the deadline was missed (kept after escalation moves sla_due_at on).
+    sla_breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
