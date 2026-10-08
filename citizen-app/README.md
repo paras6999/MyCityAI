@@ -17,6 +17,9 @@ npm run typecheck
 |---|---|
 | `EXPO_PUBLIC_API_URL` | Backend base URL, default `http://localhost:8000/api/v1`. On a real phone use your PC's LAN IP, e.g. `http://192.168.1.5:8000/api/v1`, and add that origin to the backend `CORS_ORIGINS` if you use the web build. |
 | `EXPO_PUBLIC_USE_MOCKS` | `true` runs against in-app mock data that follows docs/API.md (no backend needed). Sign in with any valid phone number and OTP `123456`. |
+| `EXPO_PUBLIC_USE_RN_FETCH` | Keep `true`. Expo SDK 57's default `fetch` cannot upload `{ uri, name, type }` photo parts, so complaint photos would fail on phones with "Cannot reach the server". |
+
+**Expo Go on Android:** push notifications are not available there (removed from Expo Go in SDK 53), so the app skips `expo-notifications` in Expo Go; everything else works. Real push needs a development build or APK (`npx expo run:android` or EAS Build).
 
 Real backend: `docker compose up -d db`, then in `municipal/backend` run migrations, `python -m app.seed`, `uvicorn app.main:app --reload`. The dev OTP is `123456`.
 

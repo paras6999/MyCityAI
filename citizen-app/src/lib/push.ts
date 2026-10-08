@@ -1,6 +1,5 @@
 import { Platform } from 'react-native'
-import Constants from 'expo-constants'
-import * as Notifications from 'expo-notifications'
+import Constants, { ExecutionEnvironment } from 'expo-constants'
 import { authApi } from '../api/auth'
 import { USE_MOCKS } from '../config'
 
@@ -8,16 +7,26 @@ import { USE_MOCKS } from '../config'
 // Remote push does not work on web or in an Android Expo Go build; every failure is silent
 // because the in-app notification list works without push.
 
+// Since SDK 53, Expo Go on Android throws as soon as expo-notifications is imported,
+// so the module is only loaded where push can work (development build / APK, iOS).
+const PUSH_SUPPORTED =
+  Platform.OS !== 'web' &&
+  !(Platform.OS === 'android' && Constants.executionEnvironment === ExecutionEnvironment.StoreClient)
+
+export const Notifications: typeof import('expo-notifications') | null = PUSH_SUPPORTED
+  ? require('expo-notifications')
+  : null
+
 let registeredToken: string | null = null
 
-Notifications.setNotificationHandler({
+Notifications?.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false,
   }),
 })
 
 export async function pushPermissionGranted(): Promise<boolean> {
-  if (Platform.OS === 'web') return false
+  if (!Notifications) return false
   try {
     return (await Notifications.getPermissionsAsync()).granted
   } catch {
@@ -26,7 +35,7 @@ export async function pushPermissionGranted(): Promise<boolean> {
 }
 
 export async function registerForPush(ask: boolean): Promise<boolean> {
-  if (Platform.OS === 'web' || USE_MOCKS) return false
+  if (!Notifications || USE_MOCKS) return false
   try {
     let permission = await Notifications.getPermissionsAsync()
     if (!permission.granted && ask) permission = await Notifications.requestPermissionsAsync()

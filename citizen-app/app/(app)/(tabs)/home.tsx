@@ -72,6 +72,14 @@ export default function HomeScreen() {
         <IconButton icon="bell-outline" label={t('nav.notifications')} badge={unreadCount > 0} onPress={() => router.push('/notifications')} />
       </View>
 
+      {/* Ward / city notices first: water cuts and emergencies must be seen before anything else. */}
+      {home.data?.announcements.length ? (
+        <View>
+          <SectionHeader title={t('home.updates')} action={t('common.viewAll')} onAction={() => router.push('/announcements')} />
+          <View style={{ gap: spacing.sm }}>{home.data.announcements.map((a) => <AnnouncementCard key={a.id} item={a} />)}</View>
+        </View>
+      ) : null}
+
       <View style={styles.hero}>
         <View style={styles.heroIcon}><Icon name="bullhorn-outline" size={26} color="#FFFFFF" /></View>
         <Text variant="h2" color="#FFFFFF">{t('home.heroTitle')}</Text>
@@ -122,14 +130,6 @@ export default function HomeScreen() {
         <Icon name="chevron-right" size={20} color={colors.textFaint} />
       </Card>
 
-      <View>
-        <SectionHeader title={t('home.updates')} action={t('common.viewAll')} onAction={() => router.push('/announcements')} />
-        {home.data?.announcements.length ? (
-          <View style={{ gap: spacing.md }}>{home.data.announcements.map((a) => <AnnouncementCard key={a.id} item={a} />)}</View>
-        ) : (
-          <Card><Text variant="small" color={colors.textMuted}>{t('home.updatesEmpty')}</Text></Card>
-        )}
-      </View>
     </Screen>
   )
 }

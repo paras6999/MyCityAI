@@ -17,6 +17,8 @@ export function formatDateTime(iso: string, lang: Language): string {
 
 export function timeAgo(iso: string, lang: Language): string {
   const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000)
+  // Hermes on Android has no Intl.RelativeTimeFormat: show the date and time instead.
+  if (typeof Intl.RelativeTimeFormat !== 'function') return formatDateTime(iso, lang)
   const rtf = new Intl.RelativeTimeFormat(LOCALES[lang], { numeric: 'auto' })
   const steps: [Intl.RelativeTimeFormatUnit, number][] = [
     ['day', 86400],
