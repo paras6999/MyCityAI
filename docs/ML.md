@@ -58,7 +58,21 @@ Not every complaint is visible in a photo. The pipeline combines three signals:
 5. Augmentations (Roboflow or YOLO's built-in): flip, brightness ±25 %, blur, rotation ±10°. Don't flip vertically.
 6. Export as **YOLOv8** format → you get `data.yaml` + `train/ valid/ test/` folders.
 
+## 3b. Building the dataset (scripts in `ml/vision/`)
+
+```bash
+python ml/vision/download_public.py                     # free public data → ml/vision/data/raw/ (~540 MB)
+python ml/vision/build_dataset.py --name civic-v0 --zip # merge + rename classes → ml/vision/data/civic-v0.zip
+```
+- Roboflow exports (format **YOLOv8**): unzip each into `ml/vision/data/raw/roboflow/<name>/`; your own labelled Kolhapur photos into `ml/vision/data/raw/kolhapur/<name>/`. Re-run `build_dataset.py` with a new name (`civic-v1`, …).
+- Class names from other datasets are translated with [`class_aliases.json`](../ml/vision/class_aliases.json); unknown names are listed so you can add them. Class ids never change (order of §1), so every version stays compatible with `models.json`.
+- About 12 % of photos without any problem are kept on purpose (clean / repaired roads) so the model learns not to fire on everything.
+- `ml/vision/data/` is git-ignored — share datasets through Google Drive or Roboflow, never GitHub.
+
 ## 4. Training (Google Colab, free GPU)
+
+**Easiest:** open [`ml/vision/train_colab.ipynb`](../ml/vision/train_colab.ipynb) in Google Colab (File → Upload notebook), upload `civic-v0.zip` to Google Drive → `MyCityAI/`, choose **T4 GPU** and *Run all*. It resumes after disconnects and saves the model + test metrics to Drive.
+
 
 Use [`ml/vision/train.py`](../ml/vision/train.py) or these Colab cells (Runtime → Change runtime type → **T4 GPU**):
 

@@ -71,3 +71,6 @@ Thumbs.db
 
 # --- ML data (exported sensor readings etc.) ---
 ml/**/*.csv
+# ML datasets (photos/labels) and training runs: never commit, share via Drive / Roboflow
+ml/vision/data/
+ml/vision/runs/

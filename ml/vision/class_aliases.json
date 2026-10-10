@@ -1,0 +1,57 @@
+{
+  "_comment": "Maps class names found in downloaded / Roboflow datasets (lower-case) to our 11 classes (docs/ML.md §1). null = drop those boxes. build_dataset.py reports any name not listed here so you can add it.",
+  "pothole": "pothole",
+  "potholes": "pothole",
+  "d40": "pothole",
+  "0": "pothole",
+
+  "road_crack": "road_crack",
+  "crack": "road_crack",
+  "cracks": "road_crack",
+  "longitudinal_crack": "road_crack",
+  "transverse_crack": "road_crack",
+  "alligator_crack": "road_crack",
+  "d00": "road_crack",
+  "d10": "road_crack",
+  "d20": "road_crack",
+
+  "garbage_pile": "garbage_pile",
+  "garbage": "garbage_pile",
+  "garbage pile": "garbage_pile",
+  "trash pile": "garbage_pile",
+  "waste": "garbage_pile",
+  "dumping": "garbage_pile",
+
+  "overflowing_bin": "overflowing_bin",
+  "overflowing bin": "overflowing_bin",
+  "overflowing dustbin": "overflowing_bin",
+  "garbage bin full": "overflowing_bin",
+
+  "construction_debris": "construction_debris",
+  "construction waste": "construction_debris",
+  "debris": "construction_debris",
+  "rubble": "construction_debris",
+
+  "fallen_tree": "fallen_tree",
+  "fallen tree": "fallen_tree",
+  "tree on road": "fallen_tree",
+
+  "broken_streetlight": "broken_streetlight",
+  "broken streetlight": "broken_streetlight",
+  "damaged street light": "broken_streetlight",
+
+  "waterlogging": "waterlogging",
+  "flood": "waterlogging",
+  "flooded road": "waterlogging",
+
+  "drain_overflow": "drain_overflow",
+  "sewage overflow": "drain_overflow",
+  "drain overflow": "drain_overflow",
+
+  "open_manhole": "open_manhole",
+  "open manhole": "open_manhole",
+
+  "water_leak": "water_leak",
+  "water leak": "water_leak",
+  "pipe leak": "water_leak"
+}
